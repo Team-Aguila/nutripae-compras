@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     mongo_port: int = Field(default=27017, description="MongoDB port")
     mongo_user: str = Field(default="root", description="MongoDB username")
     mongo_password: str = Field(default="example", description="MongoDB password")
-    mongo_db_name: str = Field(default="pae_core", description="MongoDB database name")
+    mongo_db_name: str = Field(default="pae_menus", description="MongoDB database name")
     mongo_auth_db: str = Field(default="admin", description="MongoDB authentication database")
     
     # Environment-specific settings
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         case_sensitive = False
         # Allow environment variables to override settings
-        env_prefix = "PAE_CORE_"
+        env_prefix = "PAE_MENUS_"
 
 
 # Global settings instance

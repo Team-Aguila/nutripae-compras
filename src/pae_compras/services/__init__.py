@@ -1,4 +1,4 @@
-# pae_core/services/__init__.py 
-from .coverage_service import coverage_service
+# pae_compras/services/__init__.py
+from .purchase_order_service import purchase_order_service
 
-__all__ = ["coverage_service"] 
+__all__ = ["purchase_order_service"] 

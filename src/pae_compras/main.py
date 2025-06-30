@@ -7,6 +7,7 @@ from beanie import init_beanie
 
 from .core.config import settings
 from .api import api_router
+from .models import PurchaseOrder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,21 +41,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="PAE Core API",
-    description="Core API for the PAE system.",
+    title="PAE Compras API",
+    description="API for managing purchase orders in the PAE system.",
     version="1.0.0",
     lifespan=lifespan
 )
 
-app.include_router(api_router, prefix="/api/v1")
+# Register purchase-specific models
+register_models([PurchaseOrder])
+
+# Include purchase-specific routes
+app.include_router(api_router, prefix="/api/v1/compras", tags=["Compras"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the PAE Core API"}
+    return {"message": "Welcome to the PAE Compras API"}
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "PAE Core API"}
+    return {"status": "healthy", "service": "PAE Compras API"}
 
 @app.get("/health/database")
 async def database_health_check():

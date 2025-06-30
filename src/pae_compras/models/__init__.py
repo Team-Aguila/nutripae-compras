@@ -1,3 +1,17 @@
-# pae_core/models/__init__.py
+# pae_compras/models/__init__.py
 
-__all__ = []
+from .purchase_order import (
+    PurchaseOrder,
+    PurchaseOrderCreate,
+    PurchaseOrderResponse,
+    PurchaseOrderItem,
+    OrderStatus,
+)
+
+__all__ = [
+    "PurchaseOrder",
+    "PurchaseOrderCreate",
+    "PurchaseOrderResponse",
+    "PurchaseOrderItem",
+    "OrderStatus",
+]
