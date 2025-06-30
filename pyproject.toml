@@ -1,0 +1,48 @@
+[project]
+name = "pae-monorepo"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "srestrero",email = "srestreporo@unal.edu.co"}
+]
+readme = "README.md"
+requires-python = ">=3.10, <4.0"
+dependencies = [
+    "fastapi[all] (>=0.115.12,<0.116.0)",
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "motor (>=3.6.0,<4.0.0)",
+    "beanie (>=1.25.0,<2.0.0)",
+    "pymongo (>=4.10.1,<5.0.0)",
+    "pydantic-settings (>=2.0.0,<3.0.0)",
+    "aiohttp (>=3.9.0,<4.0.0)"
+]
+
+[tool.poetry]
+packages = [
+    {include = "pae_core", from = "src"},
+    {include = "pae_menus", from = "src"},
+    {include = "pae_compras", from = "src"}
+]
+
+
+[tool.poetry.group.dev.dependencies]
+commitizen = "^4.8.2"
+pre-commit = "^4.2.0"
+poethepoet = "^0.34.0"
+
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "poetry"
+update_changelog_on_bump = true
+major_version_zero = true
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+dev-core = "uvicorn pae_core.main:app --reload --app-dir src --host 0.0.0.0 --port 8000"
+dev-menus = "uvicorn pae_menus.main:app --reload --app-dir src --host 0.0.0.0 --port 8001"
+dev-compras = "uvicorn pae_compras.main:app --reload --app-dir src --host 0.0.0.0 --port 8002"
