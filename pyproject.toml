@@ -20,7 +20,8 @@ dependencies = [
 [tool.poetry]
 packages = [
     {include = "pae_core", from = "src"},
-    {include = "pae_menus", from = "src"}
+    {include = "pae_menus", from = "src"},
+    {include = "pae_compras", from = "src"}
 ]
 
 
@@ -44,3 +45,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poe.tasks]
 dev-core = "uvicorn pae_core.main:app --reload --app-dir src --host 0.0.0.0 --port 8000"
 dev-menus = "uvicorn pae_menus.main:app --reload --app-dir src --host 0.0.0.0 --port 8001"
+dev-compras = "uvicorn pae_compras.main:app --reload --app-dir src --host 0.0.0.0 --port 8002"
