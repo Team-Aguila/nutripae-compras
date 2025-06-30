@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 
@@ -7,14 +7,14 @@ class Settings(BaseSettings):
     
     # Server Configuration
     server_host: str = Field(default="0.0.0.0", description="Server host")
-    server_port: int = Field(default=8001, description="Server port")
+    server_port: int = Field(default=8002, description="Server port")
     
     # MongoDB Configuration
     mongo_host: str = Field(default="localhost", description="MongoDB host")
     mongo_port: int = Field(default=27017, description="MongoDB port")
     mongo_user: str = Field(default="root", description="MongoDB username")
     mongo_password: str = Field(default="example", description="MongoDB password")
-    mongo_db_name: str = Field(default="pae_menus", description="MongoDB database name")
+    mongo_db_name: str = Field(default="pae_compras", description="MongoDB database name")
     mongo_auth_db: str = Field(default="admin", description="MongoDB authentication database")
     
     # Environment-specific settings
@@ -37,12 +37,13 @@ class Settings(BaseSettings):
         else:
             return f"mongodb://{self.mongo_host}:{self.mongo_port}/"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        # Allow environment variables to override settings
-        env_prefix = "PAE_MENUS_"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        env_prefix="PAE_COMPRAS_",
+        extra="ignore"
+    )
 
 
 # Global settings instance
