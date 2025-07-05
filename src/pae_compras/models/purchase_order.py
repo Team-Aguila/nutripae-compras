@@ -41,6 +41,9 @@ class PurchaseOrder(Document):
     total: Optional[Decimal] = Field(default=None, description="Total amount")
     required_delivery_date: Optional[date] = Field(default=None, description="Required delivery date")
     shipped_at: Optional[datetime] = Field(default=None, description="Timestamp when order was marked as shipped")
+    cancelled_at: Optional[datetime] = Field(default=None, description="Timestamp when order was cancelled")
+    cancelled_by: Optional[str] = Field(default=None, description="User who cancelled the order")
+    cancellation_reason: Optional[str] = Field(default=None, description="Reason for cancelling the order")
     created_by: Optional[str] = Field(default=None, description="User who created the order")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of document creation")
     updated_at: Optional[datetime] = Field(default=None, description="Timestamp of the last update")
@@ -78,9 +81,31 @@ class PurchaseOrderResponse(BaseModel):
     total: Optional[Decimal]
     required_delivery_date: Optional[date]
     shipped_at: Optional[datetime]
+    cancelled_at: Optional[datetime]
+    cancelled_by: Optional[str]
+    cancellation_reason: Optional[str]
     created_by: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]
+
+    class Config:
+        populate_by_name = True
+
+
+class CancelOrderRequest(BaseModel):
+    """Request model for cancelling a purchase order"""
+    reason: str = Field(min_length=1, max_length=500, description="Reason for cancelling the order")
+
+
+class CancelOrderResponse(BaseModel):
+    """Response model for cancel order operation"""
+    id: PydanticObjectId = Field(alias="_id")
+    order_number: Optional[str]
+    status: OrderStatus
+    cancelled_at: datetime
+    cancelled_by: str
+    cancellation_reason: str
+    message: str
 
     class Config:
         populate_by_name = True

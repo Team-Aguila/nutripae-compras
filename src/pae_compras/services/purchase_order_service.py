@@ -12,6 +12,8 @@ from ..models import (
     LineItem,
     OrderStatus,
     MarkShippedResponse,
+    CancelOrderRequest,
+    CancelOrderResponse,
 )
 
 
@@ -22,6 +24,59 @@ class PurchaseOrderService:
         now = datetime.datetime.now()
         # Simple example: PO-YYYYMMDD-HHMMSS
         return f"PO-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S%f')}"
+
+    @staticmethod
+    async def cancel_purchase_order(
+        order_id: PydanticObjectId, 
+        cancel_data: CancelOrderRequest, 
+        cancelled_by: str
+    ) -> CancelOrderResponse:
+        """
+        Cancels a purchase order.
+        - Validates the order exists.
+        - Validates no receipts have been registered (currently assumes no receipts if not completed).
+        - Updates status to CANCELLED and records cancellation details.
+        """
+        # Find the order
+        order = await PurchaseOrder.get(order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Purchase order with ID {order_id} not found."
+            )
+
+        # Validate current status - cannot cancel if already completed or cancelled
+        if order.status == OrderStatus.CANCELLED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order is already cancelled."
+            )
+        
+        if order.status == OrderStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot cancel order. Order has already been completed with receipts registered."
+            )
+
+        # Update the order
+        now = datetime.datetime.utcnow()
+        order.status = OrderStatus.CANCELLED
+        order.cancelled_at = now
+        order.cancelled_by = cancelled_by
+        order.cancellation_reason = cancel_data.reason
+        order.updated_at = now
+
+        await order.save()
+
+        return CancelOrderResponse(
+            id=order.id,
+            order_number=order.order_number,
+            status=order.status,
+            cancelled_at=order.cancelled_at,
+            cancelled_by=order.cancelled_by,
+            cancellation_reason=order.cancellation_reason,
+            message="Order successfully cancelled"
+        )
 
     @staticmethod
     async def mark_order_as_shipped(order_id: PydanticObjectId) -> MarkShippedResponse:

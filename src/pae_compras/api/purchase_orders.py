@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, status
 from beanie import PydanticObjectId
 
-from ..models import PurchaseOrderCreate, PurchaseOrderResponse, MarkShippedResponse
+from ..models import (
+    PurchaseOrderCreate, 
+    PurchaseOrderResponse, 
+    MarkShippedResponse,
+    CancelOrderRequest,
+    CancelOrderResponse
+)
 from ..services import purchase_order_service
 from ..services.purchase_order_service import PurchaseOrderService
 
@@ -51,4 +57,32 @@ async def mark_purchase_order_as_shipped(
     - Order must exist
     - Order status must be 'pending'
     """
-    return await service.mark_order_as_shipped(order_id) 
+    return await service.mark_order_as_shipped(order_id)
+
+
+@router.patch(
+    "/{order_id}/cancel",
+    response_model=CancelOrderResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancel Purchase Order",
+    description="Cancels a purchase order and records the cancellation reason. Cannot cancel orders that have already been completed.",
+)
+async def cancel_purchase_order(
+    order_id: PydanticObjectId,
+    cancel_data: CancelOrderRequest,
+    service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+) -> CancelOrderResponse:
+    """
+    Cancels a purchase order.
+
+    - **order_id**: The ID of the purchase order to cancel.
+    - **reason**: The reason for cancelling the order.
+    
+    Requirements:
+    - Order must exist
+    - Order cannot be already cancelled
+    - Order cannot be completed (no receipts registered)
+    """
+    # In a real application, cancelled_by would come from an authentication dependency
+    cancelled_by = "test_user"
+    return await service.cancel_purchase_order(order_id, cancel_data, cancelled_by) 
