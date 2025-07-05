@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
+from beanie import PydanticObjectId
 
-from ..models import PurchaseOrderCreate, PurchaseOrderResponse
+from ..models import PurchaseOrderCreate, PurchaseOrderResponse, MarkShippedResponse
 from ..services import purchase_order_service
 from ..services.purchase_order_service import PurchaseOrderService
 
@@ -27,4 +28,27 @@ async def create_manual_purchase_order(
     """
     # In a real application, created_by would come from an authentication dependency
     created_by = "test_user"
-    return await service.create_manual_purchase_order(order_data, created_by) 
+    return await service.create_manual_purchase_order(order_data, created_by)
+
+
+@router.patch(
+    "/{order_id}/mark-shipped",
+    response_model=MarkShippedResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Mark Purchase Order as Shipped",
+    description="Changes the status of a purchase order from 'pending' to 'shipped' and records the shipping timestamp.",
+)
+async def mark_purchase_order_as_shipped(
+    order_id: PydanticObjectId,
+    service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+) -> MarkShippedResponse:
+    """
+    Marks a purchase order as shipped.
+
+    - **order_id**: The ID of the purchase order to mark as shipped.
+    
+    Requirements:
+    - Order must exist
+    - Order status must be 'pending'
+    """
+    return await service.mark_order_as_shipped(order_id) 

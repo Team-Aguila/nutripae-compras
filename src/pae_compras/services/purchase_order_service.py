@@ -10,6 +10,8 @@ from ..models import (
     PurchaseOrderItem,
     PurchaseOrderResponse,
     LineItem,
+    OrderStatus,
+    MarkShippedResponse,
 )
 
 
@@ -20,6 +22,45 @@ class PurchaseOrderService:
         now = datetime.datetime.now()
         # Simple example: PO-YYYYMMDD-HHMMSS
         return f"PO-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S%f')}"
+
+    @staticmethod
+    async def mark_order_as_shipped(order_id: PydanticObjectId) -> MarkShippedResponse:
+        """
+        Marks a purchase order as shipped.
+        - Validates the order exists.
+        - Validates current status is PENDING.
+        - Updates status to SHIPPED and records shipping timestamp.
+        """
+        # Find the order
+        order = await PurchaseOrder.get(order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Purchase order with ID {order_id} not found."
+            )
+
+        # Validate current status
+        if order.status != OrderStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot mark order as shipped. Current status is '{order.status}'. Only orders with status 'pending' can be marked as shipped."
+            )
+
+        # Update the order
+        now = datetime.datetime.utcnow()
+        order.status = OrderStatus.SHIPPED
+        order.shipped_at = now
+        order.updated_at = now
+
+        await order.save()
+
+        return MarkShippedResponse(
+            id=order.id,
+            order_number=order.order_number,
+            status=order.status,
+            shipped_at=order.shipped_at,
+            message="Order successfully marked as shipped"
+        )
 
     @staticmethod
     async def create_manual_purchase_order(

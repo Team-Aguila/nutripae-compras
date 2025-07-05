@@ -40,6 +40,7 @@ class PurchaseOrder(Document):
     taxes: Optional[Decimal] = Field(default=None, description="Tax amount")
     total: Optional[Decimal] = Field(default=None, description="Total amount")
     required_delivery_date: Optional[date] = Field(default=None, description="Required delivery date")
+    shipped_at: Optional[datetime] = Field(default=None, description="Timestamp when order was marked as shipped")
     created_by: Optional[str] = Field(default=None, description="User who created the order")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of document creation")
     updated_at: Optional[datetime] = Field(default=None, description="Timestamp of the last update")
@@ -76,9 +77,22 @@ class PurchaseOrderResponse(BaseModel):
     taxes: Optional[Decimal]
     total: Optional[Decimal]
     required_delivery_date: Optional[date]
+    shipped_at: Optional[datetime]
     created_by: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]
+
+    class Config:
+        populate_by_name = True
+
+
+class MarkShippedResponse(BaseModel):
+    """Response model for mark shipped operation"""
+    id: PydanticObjectId = Field(alias="_id")
+    order_number: Optional[str]
+    status: OrderStatus
+    shipped_at: datetime
+    message: str
 
     class Config:
         populate_by_name = True 
