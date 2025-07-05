@@ -1,5 +1,6 @@
 import datetime
 from typing import List
+from decimal import Decimal
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 
@@ -8,6 +9,7 @@ from ..models import (
     PurchaseOrderCreate,
     PurchaseOrderItem,
     PurchaseOrderResponse,
+    LineItem,
 )
 
 
@@ -39,13 +41,26 @@ class PurchaseOrderService:
         # Calculate subtotal and total
         subtotal = sum(item.quantity * item.price for item in order_data.items)
         # Assuming taxes are 0 for now
-        taxes = 0.0
+        taxes = Decimal("0.0")
         total = subtotal + taxes
 
         order_number = await PurchaseOrderService.generate_order_number()
 
+        # Convert PurchaseOrderItem to LineItem
+        line_items = [
+            LineItem(
+                product_id=item.product_id,
+                quantity=item.quantity,
+                price=item.price
+            )
+            for item in order_data.items
+        ]
+
         new_order = PurchaseOrder(
-            **order_data.model_dump(),
+            purchase_order_date=order_data.purchase_order_date,
+            provider_id=order_data.provider_id,
+            line_items=line_items,
+            required_delivery_date=order_data.required_delivery_date,
             order_number=order_number,
             subtotal=subtotal,
             taxes=taxes,

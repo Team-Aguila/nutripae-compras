@@ -11,7 +11,7 @@ from .models import (
     PurchaseOrder,
     Provider,
     Product,
-    InventoryItem,
+    Inventory,
     IngredientReceipt,
 )
 
@@ -54,7 +54,7 @@ app = FastAPI(
 )
 
 # Register purchase-specific models
-register_models([PurchaseOrder, Provider, Product, InventoryItem, IngredientReceipt])
+register_models([PurchaseOrder, Provider, Product, Inventory, IngredientReceipt])
 
 # Include purchase-specific routes
 app.include_router(api_router, prefix="/api/v1/compras", tags=["Compras"])

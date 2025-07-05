@@ -3,7 +3,7 @@ from ..models import (
     IngredientReceipt,
     IngredientReceiptCreate,
     IngredientReceiptResponse,
-    InventoryItem,
+    Inventory,
     Product,
     PurchaseOrder,
     OrderStatus,
@@ -19,7 +19,7 @@ class IngredientReceiptService:
         Registers an ingredient receipt and updates inventory.
         - Validates input data.
         - Creates an IngredientReceipt document.
-        - For each item in the receipt, creates an InventoryItem document.
+        - For each item in the receipt, creates an Inventory document.
         - Optionally updates the status of the related Purchase Order.
         """
         if not receipt_data.items:
@@ -46,13 +46,14 @@ class IngredientReceiptService:
 
         # Create inventory items for each received item
         for item in receipt_data.items:
-            inventory_item = InventoryItem(
+            inventory_item = Inventory(
                 product_id=item.product_id,
                 institution_id=receipt_data.institution_id,
                 remaining_weight=item.quantity,  # Assuming quantity is in weight
                 date_of_admission=receipt_data.receipt_date,
                 lot=item.lot,
                 expiration_date=item.expiration_date,
+                minimum_threshold=0,  # Default threshold, can be updated later
             )
             await inventory_item.insert()
 
@@ -62,9 +63,9 @@ class IngredientReceiptService:
             if po:
                 # This is a simplified logic. A real-world scenario would
                 # compare received quantities with ordered quantities
-                # to set PARTIALLY_RECEIVED or RECEIVED.
-                # For now, we'll just mark it as RECEIVED.
-                po.status = OrderStatus.RECEIVED
+                # to set PARTIALLY_RECEIVED or COMPLETED.
+                # For now, we'll just mark it as COMPLETED.
+                po.status = OrderStatus.COMPLETED
                 await po.save()
 
         return IngredientReceiptResponse(**new_receipt.model_dump())
