@@ -2,15 +2,12 @@
 
 from .purchase_order import (
     PurchaseOrder,
-    PurchaseOrderBase,
-    PurchaseOrderCreate,
-    PurchaseOrderItem,
-    PurchaseOrderResponse,
+    LineItem,
     OrderStatus,
 )
 from .provider import Provider
-from .product import Product, WeeklyAvailability
-from .inventory import InventoryItem
+from .product import Product, WeeklyAvailability, LifeTime
+from .inventory import Inventory
 from .ingredient_receipt import (
     IngredientReceipt,
     IngredientReceiptBase,
@@ -21,15 +18,13 @@ from .ingredient_receipt import (
 
 __all__ = [
     "PurchaseOrder",
-    "PurchaseOrderBase",
-    "PurchaseOrderCreate",
-    "PurchaseOrderItem",
-    "PurchaseOrderResponse",
+    "LineItem",
     "OrderStatus",
     "Provider",
     "Product",
     "WeeklyAvailability",
-    "InventoryItem",
+    "LifeTime",
+    "Inventory",
     "IngredientReceipt",
     "IngredientReceiptBase",
     "IngredientReceiptCreate",
