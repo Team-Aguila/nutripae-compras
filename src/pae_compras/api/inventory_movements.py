@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Body
 from typing import List, Optional
 from beanie import PydanticObjectId
 
-from ..models import InventoryMovementResponse, MovementType
+from ..models import (
+    InventoryMovementResponse, 
+    MovementType,
+    InventoryConsumptionRequest,
+    InventoryConsumptionResponse,
+)
 from ..services import inventory_movement_service
 from ..services.inventory_movement_service import InventoryMovementService
 
@@ -140,4 +145,150 @@ async def create_manual_adjustment(
         lot=lot,
         notes=notes,
         created_by=created_by,
+    )
+
+
+@router.post(
+    "/consume-inventory",
+    response_model=InventoryConsumptionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Consume Inventory with FIFO Logic",
+    description="Record inventory consumption using FIFO (First-In, First-Out) logic for batch management.",
+)
+async def consume_inventory_fifo(
+    consumption_request: InventoryConsumptionRequest = Body(...),
+    service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+) -> InventoryConsumptionResponse:
+    """
+    Consume inventory using FIFO (First-In, First-Out) logic.
+    
+    This endpoint implements the complete FIFO consumption process:
+    
+    **Key Features:**
+    - **FIFO Logic**: Automatically selects oldest batches first
+    - **Stock Validation**: Ensures sufficient stock before consumption
+    - **Batch Tracking**: Records consumption from each batch
+    - **Audit Trail**: Creates detailed movement records
+    - **Transaction Integrity**: Groups all operations under a single transaction ID
+    
+    **Request Body:**
+    ```json
+    {
+        "product_id": "648f8f8f8f8f8f8f8f8f8f8f",
+        "institution_id": 1,
+        "storage_location": "warehouse-01",
+        "quantity": 5.5,
+        "unit": "kg",
+        "consumption_date": "2024-01-15T10:30:00Z",
+        "reason": "menu preparation",
+        "notes": "Used for lunch menu preparation",
+        "consumed_by": "chef_maria"
+    }
+    ```
+    
+    **Response:**
+    - Complete consumption details including batch breakdown
+    - Transaction ID for tracking
+    - List of created movement records
+    - Remaining quantities in affected batches
+    
+    **Error Conditions:**
+    - 404: Product not found
+    - 400: Insufficient stock available
+    - 400: Invalid quantity or other validation errors
+    """
+    return await service.consume_inventory_fifo(consumption_request)
+
+
+@router.get(
+    "/stock-summary/{product_id}/{institution_id}",
+    response_model=dict,
+    summary="Get Available Stock Summary",
+    description="Get detailed summary of available stock for a product with FIFO batch information.",
+)
+async def get_available_stock_summary(
+    product_id: PydanticObjectId,
+    institution_id: int,
+    storage_location: Optional[str] = Query(
+        default=None, description="Filter by storage location"
+    ),
+    service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+) -> dict:
+    """
+    Get comprehensive summary of available stock for a product.
+    
+    **Parameters:**
+    - **product_id**: The ID of the product
+    - **institution_id**: The ID of the institution/warehouse
+    - **storage_location**: (Optional) Filter by specific storage location
+    
+    **Returns:**
+    Detailed stock summary including:
+    - Total available stock across all batches
+    - Number of available batches
+    - Oldest and newest batch dates
+    - Complete batch details with FIFO ordering
+    - Individual batch information (lot, remaining weight, dates)
+    
+    **Use Cases:**
+    - Check stock availability before consumption
+    - Understand batch distribution and aging
+    - Plan consumption strategies
+    - Monitor inventory levels
+    """
+    return await service.get_available_stock_summary(
+        product_id=product_id,
+        institution_id=institution_id,
+        storage_location=storage_location,
+    )
+
+
+@router.get(
+    "/consumption-history/{product_id}",
+    response_model=List[InventoryMovementResponse],
+    summary="Get Consumption History",
+    description="Get history of inventory consumption movements for a product.",
+)
+async def get_consumption_history(
+    product_id: PydanticObjectId,
+    institution_id: Optional[int] = Query(
+        default=None, description="Filter by institution ID"
+    ),
+    storage_location: Optional[str] = Query(
+        default=None, description="Filter by storage location"
+    ),
+    limit: int = Query(default=100, le=1000, description="Maximum number of records to return"),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+) -> List[InventoryMovementResponse]:
+    """
+    Get history of consumption movements for a product.
+    
+    **Parameters:**
+    - **product_id**: The ID of the product
+    - **institution_id**: (Optional) Filter by institution ID
+    - **storage_location**: (Optional) Filter by storage location
+    - **limit**: Maximum number of records to return (default: 100, max: 1000)
+    - **offset**: Number of records to skip for pagination (default: 0)
+    
+    **Returns:**
+    List of consumption movements (USAGE type) showing:
+    - Consumption details and quantities
+    - Batch information (lot numbers, expiration dates)
+    - Reasons and notes
+    - Who performed the consumption
+    - Transaction references
+    
+    **Use Cases:**
+    - Audit consumption patterns
+    - Track usage by person/reason
+    - Analyze consumption trends
+    - Verify FIFO compliance
+    """
+    return await service.get_movements_by_product(
+        product_id=product_id,
+        institution_id=institution_id,
+        movement_type=MovementType.USAGE,
+        limit=limit,
+        offset=offset,
     ) 

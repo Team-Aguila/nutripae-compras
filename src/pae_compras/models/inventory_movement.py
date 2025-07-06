@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 from beanie import Document, PydanticObjectId
@@ -80,4 +80,44 @@ class InventoryMovementResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        populate_by_name = True 
+        populate_by_name = True
+
+
+class InventoryConsumptionRequest(BaseModel):
+    """Request model for inventory consumption with FIFO logic"""
+    product_id: PydanticObjectId = Field(description="ID of the product to consume")
+    institution_id: int = Field(description="ID of the institution/warehouse")
+    storage_location: Optional[str] = Field(default=None, description="Specific storage location")
+    quantity: float = Field(gt=0, description="Quantity to consume (must be positive)")
+    unit: str = Field(default="kg", description="Unit of measurement")
+    consumption_date: Optional[datetime] = Field(default=None, description="Date of consumption (defaults to now)")
+    reason: str = Field(description="Reason for consumption (e.g., 'menu preparation', 'manual adjustment')")
+    notes: Optional[str] = Field(default=None, description="Additional notes about the consumption")
+    consumed_by: str = Field(description="Person or system that performed the consumption")
+
+
+class BatchConsumptionDetail(BaseModel):
+    """Details of consumption from a specific batch"""
+    inventory_id: PydanticObjectId = Field(description="ID of the inventory batch")
+    lot: str = Field(description="Lot number of the batch")
+    consumed_quantity: float = Field(description="Quantity consumed from this batch")
+    remaining_quantity: float = Field(description="Remaining quantity in this batch after consumption")
+    expiration_date: datetime = Field(description="Expiration date of the batch")
+    date_of_admission: datetime = Field(description="Date when batch was admitted to inventory")
+
+
+class InventoryConsumptionResponse(BaseModel):
+    """Response model for inventory consumption operations"""
+    transaction_id: str = Field(description="Unique identifier for this consumption transaction")
+    product_id: PydanticObjectId = Field(description="ID of the consumed product")
+    institution_id: int = Field(description="ID of the institution/warehouse")
+    storage_location: Optional[str] = Field(description="Storage location where consumption occurred")
+    total_quantity_consumed: float = Field(description="Total quantity consumed")
+    unit: str = Field(description="Unit of measurement")
+    consumption_date: datetime = Field(description="Date of consumption")
+    reason: str = Field(description="Reason for consumption")
+    notes: Optional[str] = Field(description="Additional notes")
+    consumed_by: str = Field(description="Person who performed the consumption")
+    batch_details: List[BatchConsumptionDetail] = Field(description="Details of consumption from each batch")
+    movement_ids: List[PydanticObjectId] = Field(description="IDs of created inventory movement records")
+    created_at: datetime = Field(description="Timestamp when consumption was recorded") 
