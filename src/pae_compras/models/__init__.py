@@ -15,7 +15,15 @@ from .purchase_order import (
     PurchaseOrderSummary,
 )
 from .provider import Provider
-from .product import Product, WeeklyAvailability, LifeTime
+from .product import (
+    Product, 
+    WeeklyAvailability, 
+    LifeTime, 
+    ProductCreate, 
+    ProductUpdate, 
+    ProductResponse, 
+    ProductListResponse
+)
 from .inventory import (
     Inventory,
     InventoryItem,
@@ -67,6 +75,10 @@ __all__ = [
     "Product",
     "WeeklyAvailability",
     "LifeTime",
+    "ProductCreate",
+    "ProductUpdate",
+    "ProductResponse",
+    "ProductListResponse",
     "Inventory",
     "InventoryItem",
     "InventoryItemResponse",
