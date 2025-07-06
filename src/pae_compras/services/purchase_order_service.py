@@ -1,8 +1,9 @@
 import datetime
-from typing import List
+from typing import List, Optional
 from decimal import Decimal
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
+import math
 
 from ..models import (
     PurchaseOrder,
@@ -14,6 +15,9 @@ from ..models import (
     MarkShippedResponse,
     CancelOrderRequest,
     CancelOrderResponse,
+    PurchaseOrderFilters,
+    PaginatedPurchaseOrderResponse,
+    PurchaseOrderSummary,
 )
 
 
@@ -24,6 +28,110 @@ class PurchaseOrderService:
         now = datetime.datetime.now()
         # Simple example: PO-YYYYMMDD-HHMMSS
         return f"PO-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S%f')}"
+
+    @staticmethod
+    async def list_purchase_orders(filters: PurchaseOrderFilters) -> PaginatedPurchaseOrderResponse:
+        """
+        Lists purchase orders with filtering and pagination.
+        """
+        # Build query conditions
+        query_conditions = {}
+        
+        # Filter by order number (partial match)
+        if filters.order_number:
+            query_conditions["order_number"] = {"$regex": filters.order_number, "$options": "i"}
+        
+        # Filter by provider ID
+        if filters.provider_id:
+            query_conditions["provider_id"] = filters.provider_id
+        
+        # Filter by status
+        if filters.status:
+            query_conditions["status"] = filters.status
+        
+        # Filter by creation date range
+        if filters.created_from or filters.created_to:
+            date_filter = {}
+            if filters.created_from:
+                date_filter["$gte"] = datetime.datetime.combine(filters.created_from, datetime.time.min)
+            if filters.created_to:
+                date_filter["$lte"] = datetime.datetime.combine(filters.created_to, datetime.time.max)
+            query_conditions["created_at"] = date_filter
+        
+        # Filter by delivery date range
+        if filters.delivery_from or filters.delivery_to:
+            delivery_filter = {}
+            if filters.delivery_from:
+                delivery_filter["$gte"] = filters.delivery_from
+            if filters.delivery_to:
+                delivery_filter["$lte"] = filters.delivery_to
+            query_conditions["required_delivery_date"] = delivery_filter
+        
+        # Exclude soft-deleted orders
+        query_conditions["deleted_at"] = None
+        
+        # Get total count for pagination
+        total_count = await PurchaseOrder.find(query_conditions).count()
+        
+        # Calculate pagination
+        skip = (filters.page - 1) * filters.limit
+        total_pages = math.ceil(total_count / filters.limit) if total_count > 0 else 0
+        
+        # Get paginated results
+        orders = await PurchaseOrder.find(query_conditions)\
+            .sort([("created_at", -1)])\
+            .skip(skip)\
+            .limit(filters.limit)\
+            .to_list()
+        
+        # Convert to summary format
+        order_summaries = []
+        for order in orders:
+            order_dict = order.model_dump()
+            # Ensure required fields have default values if missing
+            if order_dict.get('purchase_order_date') is None:
+                order_dict['purchase_order_date'] = order.created_at
+            if order_dict.get('line_items') is None:
+                order_dict['line_items'] = []
+            
+            order_summaries.append(PurchaseOrderSummary(**order_dict))
+        
+        return PaginatedPurchaseOrderResponse(
+            items=order_summaries,
+            total=total_count,
+            page=filters.page,
+            limit=filters.limit,
+            total_pages=total_pages,
+            has_next=filters.page < total_pages,
+            has_previous=filters.page > 1
+        )
+
+    @staticmethod
+    async def get_purchase_order_by_id(order_id: PydanticObjectId) -> PurchaseOrderResponse:
+        """
+        Gets a purchase order by its ID.
+        """
+        order = await PurchaseOrder.get(order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Purchase order with ID {order_id} not found."
+            )
+        
+        if order.deleted_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Purchase order with ID {order_id} not found."
+            )
+        
+        # Handle legacy data
+        order_dict = order.model_dump()
+        if order_dict.get('purchase_order_date') is None:
+            order_dict['purchase_order_date'] = order.created_at
+        if order_dict.get('line_items') is None:
+            order_dict['line_items'] = []
+        
+        return PurchaseOrderResponse(**order_dict)
 
     @staticmethod
     async def cancel_purchase_order(
