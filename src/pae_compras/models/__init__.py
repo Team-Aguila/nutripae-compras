@@ -8,7 +8,13 @@ from .purchase_order import (
     PurchaseOrderItem,
     PurchaseOrderResponse,
 )
-from .provider import Provider
+from .provider import (
+    Provider,
+    ProviderCreate,
+    ProviderUpdate,
+    ProviderResponse,
+    ProviderListResponse,
+)
 from .product import (
     Product, 
     WeeklyAvailability, 
@@ -60,6 +66,10 @@ __all__ = [
     "PurchaseOrderItem",
     "PurchaseOrderResponse",
     "Provider",
+    "ProviderCreate",
+    "ProviderUpdate",
+    "ProviderResponse",
+    "ProviderListResponse",
     "Product",
     "WeeklyAvailability",
     "LifeTime",

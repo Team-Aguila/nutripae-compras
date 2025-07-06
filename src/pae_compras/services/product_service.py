@@ -181,7 +181,7 @@ class ProductService:
         if provider_id:
             query["provider_id"] = provider_id
         
-        return await Product.count_documents(query)
+        return await Product.find(query).count()
 
 
 # Create service instance

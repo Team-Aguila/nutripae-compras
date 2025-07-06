@@ -1,16 +1,19 @@
 # pae_compras/services/__init__.py
-from .coverage_service import coverage_service
-from .ingredient_receipt_service import ingredient_receipt_service
+
 from .purchase_order_service import purchase_order_service
-from .inventory_service import inventory_service
-from .inventory_movement_service import inventory_movement_service
 from .product_service import product_service
+from .provider_service import provider_service
+from .inventory_service import inventory_service
+from .ingredient_receipt_service import ingredient_receipt_service
+from .inventory_movement_service import inventory_movement_service
+from .coverage_service import coverage_service
 
 __all__ = [
-    "coverage_service",
-    "ingredient_receipt_service", 
     "purchase_order_service",
+    "product_service", 
+    "provider_service",
     "inventory_service",
+    "ingredient_receipt_service",
     "inventory_movement_service",
-    "product_service",
+    "coverage_service",
 ] 
