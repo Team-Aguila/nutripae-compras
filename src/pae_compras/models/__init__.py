@@ -28,6 +28,9 @@ from .inventory_movement import (
     InventoryMovement,
     MovementType,
     InventoryMovementResponse,
+    InventoryConsumptionRequest,
+    InventoryConsumptionResponse,
+    BatchConsumptionDetail,
 )
 from .inventory_entry import (
     EntryMode,
@@ -65,6 +68,9 @@ __all__ = [
     "InventoryMovement",
     "MovementType",
     "InventoryMovementResponse",
+    "InventoryConsumptionRequest",
+    "InventoryConsumptionResponse",
+    "BatchConsumptionDetail",
     "EntryMode",
     "InventoryEntryItem",
     "InventoryEntryRequest",
