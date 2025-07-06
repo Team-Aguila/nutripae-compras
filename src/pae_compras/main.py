@@ -13,6 +13,7 @@ from .models import (
     Product,
     Inventory,
     IngredientReceipt,
+    InventoryMovement,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -54,7 +55,7 @@ app = FastAPI(
 )
 
 # Register purchase-specific models
-register_models([PurchaseOrder, Provider, Product, Inventory, IngredientReceipt])
+register_models([PurchaseOrder, Provider, Product, Inventory, IngredientReceipt, InventoryMovement])
 
 # Include purchase-specific routes
 app.include_router(api_router, prefix="/api/v1/compras", tags=["Compras"])

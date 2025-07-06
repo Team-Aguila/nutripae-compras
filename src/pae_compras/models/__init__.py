@@ -24,6 +24,22 @@ from .ingredient_receipt import (
     IngredientReceiptResponse,
     ReceivedItem,
 )
+from .inventory_movement import (
+    InventoryMovement,
+    MovementType,
+    InventoryMovementResponse,
+)
+from .inventory_entry import (
+    EntryMode,
+    InventoryEntryItem,
+    InventoryEntryRequest,
+    InventoryEntryResponse,
+    InventoryEntryValidationError,
+    InventoryEntryValidationResponse,
+    InventoryEntrySearchQuery,
+    InventoryEntrySearchResponse,
+    InventoryEntryStats,
+)
 
 __all__ = [
     "PurchaseOrder",
@@ -46,4 +62,16 @@ __all__ = [
     "IngredientReceiptCreate",
     "IngredientReceiptResponse",
     "ReceivedItem",
+    "InventoryMovement",
+    "MovementType",
+    "InventoryMovementResponse",
+    "EntryMode",
+    "InventoryEntryItem",
+    "InventoryEntryRequest",
+    "InventoryEntryResponse",
+    "InventoryEntryValidationError",
+    "InventoryEntryValidationResponse",
+    "InventoryEntrySearchQuery",
+    "InventoryEntrySearchResponse",
+    "InventoryEntryStats",
 ]

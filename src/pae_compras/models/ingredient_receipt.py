@@ -9,13 +9,15 @@ class ReceivedItem(BaseModel):
     """Item received as part of an ingredient receipt"""
     product_id: PydanticObjectId = Field(description="The ID of the product received")
     quantity: float = Field(gt=0, description="The quantity of the product received")
+    unit: str = Field(default="kg", description="Unit of measurement (kg, units, liters, etc.)")
+    storage_location: Optional[str] = Field(default=None, description="Specific storage location within institution")
     lot: str = Field(description="The lot number of the product")
     expiration_date: date = Field(description="The expiration date of the product")
 
 
 class IngredientReceiptBase(BaseModel):
     """Base model for an Ingredient Receipt"""
-    institution_id: str = Field(description="The ID of the institution where the ingredients were received")
+    institution_id: int = Field(description="The ID of the institution where the ingredients were received")
     purchase_order_id: Optional[PydanticObjectId] = Field(default=None, description="The ID of the related purchase order")
     receipt_date: date = Field(description="The date the ingredients were received")
     delivery_person_name: str = Field(description="Name of the person who delivered the ingredients")
@@ -33,7 +35,7 @@ class IngredientReceipt(Document, IngredientReceiptBase):
 
 class IngredientReceiptCreate(BaseModel):
     """Model for creating an Ingredient Receipt"""
-    institution_id: str = Field(description="The ID of the institution where the ingredients were received")
+    institution_id: int = Field(description="The ID of the institution where the ingredients were received")
     purchase_order_id: Optional[PydanticObjectId] = Field(default=None, description="The ID of the related purchase order")
     receipt_date: date = Field(description="The date the ingredients were received")
     delivery_person_name: str = Field(description="Name of the person who delivered the ingredients")

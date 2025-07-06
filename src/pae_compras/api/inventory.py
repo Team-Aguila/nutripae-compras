@@ -20,7 +20,7 @@ router = APIRouter()
     description="Allows an Inventory Manager to consult inventory levels by ingredient and warehouse, with filtering capabilities.",
 )
 async def consult_inventory(
-    institution_id: Optional[str] = Query(None, description="Filter by institution/warehouse ID"),
+    institution_id: Optional[int] = Query(None, description="Filter by institution/warehouse ID"),
     product_id: Optional[str] = Query(None, description="Filter by specific product/ingredient ID"),
     category: Optional[str] = Query(None, description="Filter by product category"),
     provider_id: Optional[str] = Query(None, description="Filter by provider ID"),
@@ -56,14 +56,13 @@ async def consult_inventory(
     - Track expiration dates for food safety
     - Analyze inventory distribution by category
     """
-    # Convert string IDs to PydanticObjectId where needed
-    institution_obj_id = PydanticObjectId(institution_id) if institution_id else None
+    # Convert string IDs to PydanticObjectId where needed, keep institution_id as int
     product_obj_id = PydanticObjectId(product_id) if product_id else None
     provider_obj_id = PydanticObjectId(provider_id) if provider_id else None
     
     # Create query parameters object
     query_params = InventoryConsultationQuery(
-        institution_id=institution_obj_id,
+        institution_id=institution_id,  # Keep as int
         product_id=product_obj_id,
         category=category,
         provider_id=provider_obj_id,
