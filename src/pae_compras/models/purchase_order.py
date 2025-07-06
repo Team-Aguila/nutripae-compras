@@ -1,10 +1,12 @@
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Any
 
-from beanie import Document, PydanticObjectId
-from pydantic import BaseModel, Field
+from beanie import Document, PydanticObjectId, Indexed
+from pydantic import BaseModel, Field, field_validator, field_serializer
+from pymongo import ASCENDING
+from bson import Decimal128
 
 
 class OrderStatus(str, Enum):
@@ -21,12 +23,34 @@ class LineItem(BaseModel):
     quantity: int = Field(gt=0, description="Quantity of the product")
     price: Decimal = Field(description="Price per unit using Decimal for monetary values")
 
+    @field_validator('price', mode='before')
+    @classmethod
+    def validate_price(cls, v):
+        if isinstance(v, Decimal128):
+            return Decimal(str(v))
+        return v
+
+    @field_serializer('price')
+    def serialize_price(self, value: Decimal) -> str:
+        return str(value)
+
 
 class PurchaseOrderItem(BaseModel):
     """Item within a Purchase Order for create/update operations"""
     product_id: PydanticObjectId = Field(description="REFERENCE -> products._id")
     quantity: int = Field(gt=0, description="Quantity of the product")
     price: Decimal = Field(gt=0, description="Price per unit using Decimal for monetary values")
+
+    @field_validator('price', mode='before')
+    @classmethod
+    def validate_price(cls, v):
+        if isinstance(v, Decimal128):
+            return Decimal(str(v))
+        return v
+
+    @field_serializer('price')
+    def serialize_price(self, value: Decimal) -> str:
+        return str(value)
 
 
 class PurchaseOrder(Document):
@@ -35,7 +59,7 @@ class PurchaseOrder(Document):
     status: OrderStatus = Field(default=OrderStatus.PENDING, description="Order status")
     provider_id: PydanticObjectId = Field(description="REFERENCE -> providers._id")
     line_items: List[LineItem] = Field(description="Array of embedded line item documents")
-    order_number: Optional[str] = Field(default=None, description="Unique order number")
+    order_number: Indexed(str, unique=True) = Field(default=None, description="Unique order number")
     subtotal: Optional[Decimal] = Field(default=None, description="Subtotal amount")
     taxes: Optional[Decimal] = Field(default=None, description="Tax amount")
     total: Optional[Decimal] = Field(default=None, description="Total amount")
@@ -49,13 +73,27 @@ class PurchaseOrder(Document):
     updated_at: Optional[datetime] = Field(default=None, description="Timestamp of the last update")
     deleted_at: Optional[datetime] = Field(default=None, description="For soft deletes. Null if not deleted")
 
+    @field_validator('subtotal', 'taxes', 'total', mode='before')
+    @classmethod
+    def validate_decimal_fields(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, Decimal128):
+            return Decimal(str(v))
+        return v
+
+    @field_serializer('subtotal', 'taxes', 'total')
+    def serialize_decimal_fields(self, value: Optional[Decimal]) -> Optional[str]:
+        if value is None:
+            return None
+        return str(value)
+
     class Settings:
         name = "purchase_orders"
         indexes = [
             "provider_id",
             "status",
             "purchase_order_date",
-            "order_number",
             "deleted_at"
         ]
 

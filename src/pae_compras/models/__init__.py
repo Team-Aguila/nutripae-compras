@@ -7,6 +7,9 @@ from .purchase_order import (
     PurchaseOrderCreate,
     PurchaseOrderItem,
     PurchaseOrderResponse,
+    MarkShippedResponse,
+    CancelOrderRequest,
+    CancelOrderResponse,
 )
 from .provider import Provider
 from .product import Product, WeeklyAvailability, LifeTime
@@ -48,6 +51,9 @@ __all__ = [
     "PurchaseOrderCreate",
     "PurchaseOrderItem",
     "PurchaseOrderResponse",
+    "MarkShippedResponse",
+    "CancelOrderRequest",
+    "CancelOrderResponse",
     "Provider",
     "Product",
     "WeeklyAvailability",
