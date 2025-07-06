@@ -14,7 +14,13 @@ from .purchase_order import (
     PaginatedPurchaseOrderResponse,
     PurchaseOrderSummary,
 )
-from .provider import Provider
+from .provider import (
+    Provider,
+    ProviderCreate,
+    ProviderUpdate,
+    ProviderResponse,
+    ProviderListResponse,
+)
 from .product import (
     Product, 
     WeeklyAvailability, 
@@ -72,6 +78,10 @@ __all__ = [
     "PaginatedPurchaseOrderResponse",
     "PurchaseOrderSummary",
     "Provider",
+    "ProviderCreate",
+    "ProviderUpdate",
+    "ProviderResponse",
+    "ProviderListResponse",
     "Product",
     "WeeklyAvailability",
     "LifeTime",
