@@ -41,4 +41,47 @@ class Product(Document):
             "name",
             "weekly_availability",
             "deleted_at"
-        ] 
+        ]
+
+
+class ProductCreate(BaseModel):
+    """Model for creating a Product"""
+    provider_id: PydanticObjectId = Field(description="REFERENCE -> providers._id")
+    name: str = Field(min_length=1, max_length=200, description="Name of the product")
+    weight: float = Field(gt=0, description="Default or standard weight (e.g., in kg)")
+    weekly_availability: WeeklyAvailability = Field(description="Weekly availability of the product")
+    life_time: LifeTime = Field(description="Life time of the product with value and unit")
+
+
+class ProductUpdate(BaseModel):
+    """Model for updating a Product"""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200, description="Name of the product")
+    weight: Optional[float] = Field(default=None, gt=0, description="Default or standard weight (e.g., in kg)")
+    weekly_availability: Optional[WeeklyAvailability] = Field(default=None, description="Weekly availability of the product")
+    life_time: Optional[LifeTime] = Field(default=None, description="Life time of the product with value and unit")
+
+
+class ProductResponse(BaseModel):
+    """Response model for Product"""
+    id: PydanticObjectId = Field(alias="_id")
+    provider_id: PydanticObjectId
+    name: str
+    weight: float
+    weekly_availability: WeeklyAvailability
+    life_time: LifeTime
+    created_at: datetime
+    updated_at: Optional[datetime]
+    deleted_at: Optional[datetime]
+
+    class Config:
+        populate_by_name = True
+
+
+class ProductListResponse(BaseModel):
+    """Response model for product list with pagination"""
+    products: list[ProductResponse]
+    total_count: int
+    page_info: dict = Field(description="Pagination information")
+
+    class Config:
+        populate_by_name = True 

@@ -25,3 +25,8 @@ __pycache__/
 client_sdk/node_modules
 client_sdk/src
 client_sdk/.npmrc
+
+API_DOCUMENTATION_COBERTURA.md
+API_DOCUMENTATION_MENUS.md
+INVENTORY_CONSUMPTION_API.md
+PRODUCT_CRUD_IMPLEMENTATION.md

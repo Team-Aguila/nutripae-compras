@@ -4,6 +4,7 @@ from .ingredient_receipt_service import ingredient_receipt_service
 from .purchase_order_service import purchase_order_service
 from .inventory_service import inventory_service
 from .inventory_movement_service import inventory_movement_service
+from .product_service import product_service
 
 __all__ = [
     "coverage_service",
@@ -11,4 +12,5 @@ __all__ = [
     "purchase_order_service",
     "inventory_service",
     "inventory_movement_service",
+    "product_service",
 ] 
