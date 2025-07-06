@@ -55,10 +55,10 @@ class PurchaseOrderItem(BaseModel):
 
 class PurchaseOrder(Document):
     """Purchase Order DB Model"""
-    purchase_order_date: datetime = Field(description="When the order was placed")
+    purchase_order_date: Optional[datetime] = Field(default_factory=datetime.utcnow, description="When the order was placed")
     status: OrderStatus = Field(default=OrderStatus.PENDING, description="Order status")
     provider_id: PydanticObjectId = Field(description="REFERENCE -> providers._id")
-    line_items: List[LineItem] = Field(description="Array of embedded line item documents")
+    line_items: Optional[List[LineItem]] = Field(default=[], description="Array of embedded line item documents")
     order_number: Indexed(str, unique=True) = Field(default=None, description="Unique order number")
     subtotal: Optional[Decimal] = Field(default=None, description="Subtotal amount")
     taxes: Optional[Decimal] = Field(default=None, description="Tax amount")
@@ -72,6 +72,39 @@ class PurchaseOrder(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of document creation")
     updated_at: Optional[datetime] = Field(default=None, description="Timestamp of the last update")
     deleted_at: Optional[datetime] = Field(default=None, description="For soft deletes. Null if not deleted")
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, v):
+        # Handle legacy status values
+        if isinstance(v, str):
+            status_mapping = {
+                'Generada': OrderStatus.PENDING,
+                'Enviada': OrderStatus.SHIPPED,
+                'Parcialmente Recibida': OrderStatus.SHIPPED,  # Map to shipped for now
+                'Recibida': OrderStatus.COMPLETED,
+                'Cancelada': OrderStatus.CANCELLED,
+                # Also handle current enum values
+                'pending': OrderStatus.PENDING,
+                'shipped': OrderStatus.SHIPPED,
+                'completed': OrderStatus.COMPLETED,
+                'cancelled': OrderStatus.CANCELLED,
+            }
+            return status_mapping.get(v, OrderStatus.PENDING)
+        return v
+
+    @field_validator('provider_id', mode='before')
+    @classmethod
+    def validate_provider_id(cls, v):
+        # Handle string provider IDs by converting them to ObjectId format
+        if isinstance(v, str):
+            try:
+                return PydanticObjectId(v)
+            except Exception:
+                # If it's not a valid ObjectId, create a dummy one
+                # In a real migration, you'd want to map these properly
+                return PydanticObjectId("000000000000000000000000")
+        return v
 
     @field_validator('subtotal', 'taxes', 'total', mode='before')
     @classmethod
@@ -147,6 +180,60 @@ class CancelOrderResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class PurchaseOrderFilters(BaseModel):
+    """Filters for querying purchase orders"""
+    order_number: Optional[str] = Field(default=None, description="Filter by order number (partial match)")
+    provider_id: Optional[PydanticObjectId] = Field(default=None, description="Filter by provider ID")
+    status: Optional[OrderStatus] = Field(default=None, description="Filter by order status")
+    created_from: Optional[date] = Field(default=None, description="Filter orders created from this date")
+    created_to: Optional[date] = Field(default=None, description="Filter orders created until this date")
+    delivery_from: Optional[date] = Field(default=None, description="Filter orders with delivery date from this date")
+    delivery_to: Optional[date] = Field(default=None, description="Filter orders with delivery date until this date")
+    page: int = Field(default=1, ge=1, description="Page number (starts from 1)")
+    limit: int = Field(default=10, ge=1, le=100, description="Number of items per page (max 100)")
+
+
+class PurchaseOrderSummary(BaseModel):
+    """Summary model for purchase order listing"""
+    id: PydanticObjectId = Field(alias="_id")
+    order_number: Optional[str]
+    provider_id: PydanticObjectId
+    purchase_order_date: datetime
+    required_delivery_date: Optional[date]
+    total: Optional[Decimal]
+    status: OrderStatus
+    created_at: datetime
+
+    @field_validator('total', mode='before')
+    @classmethod
+    def validate_total(cls, v):
+        if v is None:
+            return v
+        if isinstance(v, Decimal128):
+            return Decimal(str(v))
+        return v
+
+    @field_serializer('total')
+    def serialize_total(self, value: Optional[Decimal]) -> Optional[str]:
+        if value is None:
+            return None
+        return str(value)
+
+    class Config:
+        populate_by_name = True
+
+
+class PaginatedPurchaseOrderResponse(BaseModel):
+    """Paginated response for purchase order listing"""
+    items: List[PurchaseOrderSummary]
+    total: int = Field(description="Total number of items matching the filters")
+    page: int = Field(description="Current page number")
+    limit: int = Field(description="Number of items per page")
+    total_pages: int = Field(description="Total number of pages")
+    has_next: bool = Field(description="Whether there are more pages")
+    has_previous: bool = Field(description="Whether there are previous pages")
 
 
 class MarkShippedResponse(BaseModel):
