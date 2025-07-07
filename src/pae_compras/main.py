@@ -7,7 +7,14 @@ from beanie import init_beanie
 
 from .core.config import settings
 from .api import api_router
-from .models import PurchaseOrder
+from .models import (
+    PurchaseOrder,
+    Provider,
+    Product,
+    Inventory,
+    IngredientReceipt,
+    InventoryMovement,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +55,7 @@ app = FastAPI(
 )
 
 # Register purchase-specific models
-register_models([PurchaseOrder])
+register_models([PurchaseOrder, Provider, Product, Inventory, IngredientReceipt, InventoryMovement])
 
 # Include purchase-specific routes
 app.include_router(api_router, prefix="/api/v1/compras", tags=["Compras"])

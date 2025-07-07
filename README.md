@@ -1,6 +1,6 @@
-# PAE Menus Backend
+# PAE compras Backend
 
-Backend API for managing PAE (Programa de Alimentación Escolar) menus module.
+Backend API for managing PAE (Programa de Alimentación Escolar) compras module.
 
 ## 🚀 Quick Start
 
@@ -14,8 +14,8 @@ Backend API for managing PAE (Programa de Alimentación Escolar) menus module.
 
 1. **Clone the repository**
    ```bash
-   git clone git@github.com:Team-Aguila/pae-menus.git 
-   cd pae-menus
+   git clone git@github.com:Team-Aguila/pae-compras.git 
+   cd pae-compras
    ```
 
 2. **Install dependencies**
@@ -83,8 +83,8 @@ poetry run cz changelog
 ## 🏗️ Project Structure
 
 ```
-pae-menus/
-├── src/pae_menus/          # Main application code
+pae-compras/
+├── src/pae_compras/          # Main application code
 │   ├── api/                # API routes
 │   ├── core/               # Core functionality
 │   ├── models/             # Data models
