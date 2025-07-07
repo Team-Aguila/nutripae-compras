@@ -149,17 +149,21 @@ class InventoryService:
         if additional_match:
             pipeline.append({"$match": additional_match})
         
-        # Add computed fields
+        # Add computed fields - Including ALL required fields for InventoryItemResponse
         pipeline.append({
             "$addFields": {
                 "is_below_threshold": {"$lt": ["$remaining_weight", "$minimum_threshold"]},
                 "product_name": {"$ifNull": ["$product_info.name", "Unknown Product"]},
                 "provider_name": {"$ifNull": ["$provider_info.name", "Unknown Provider"]},
-                "institution_name": {"$toString": "$institution_id"},  # In real app, lookup institution
+                "institution_name": {"$concat": ["Institution ", {"$toString": "$institution_id"}]},  # In real app, lookup institution
                 "category": {"$ifNull": ["$provider_info.name", "Unknown Category"]},  # Using provider as category for now
-                "base_unit": "kg",  # Default unit, should come from product in real app
+                "base_unit": {"$ifNull": ["$unit", "kg"]},  # Use the unit field from inventory, default to kg
                 "quantity": "$remaining_weight",
-                "last_entry_date": "$date_of_admission"
+                "last_entry_date": "$date_of_admission",
+                # Ensure all fields required by InventoryItemResponse are present
+                "storage_location": {"$ifNull": ["$storage_location", ""]},  # Handle null storage_location
+                "batch_number": {"$ifNull": ["$batch_number", ""]},  # Handle null batch_number
+                "initial_weight": {"$ifNull": ["$initial_weight", 0.0]}  # Handle null initial_weight
             }
         })
         
@@ -185,8 +189,8 @@ class InventoryService:
     def _convert_to_response_model(item: Dict[str, Any]) -> InventoryItemResponse:
         """Convert aggregation result to response model"""
         return InventoryItemResponse(
-            id=item["_id"],
-            product_id=item["product_id"],
+            id=str(item["_id"]),  # Convert ObjectId to string
+            product_id=str(item["product_id"]),  # Convert ObjectId to string
             product_name=item["product_name"],
             institution_id=item["institution_id"],
             institution_name=item["institution_name"],
@@ -194,11 +198,14 @@ class InventoryService:
             category=item["category"],
             quantity=item["quantity"],
             base_unit=item["base_unit"],
+            storage_location=item["storage_location"],  # Now included in pipeline
             lot=item["lot"],
+            batch_number=item["batch_number"],  # Now included in pipeline
             last_entry_date=item["last_entry_date"],
             expiration_date=item["expiration_date"],
             minimum_threshold=item["minimum_threshold"],
             is_below_threshold=item["is_below_threshold"],
+            initial_weight=item["initial_weight"],  # Now included in pipeline
             created_at=item["created_at"]
         )
 
