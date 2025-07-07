@@ -36,6 +36,8 @@ from .inventory import (
     InventoryItemResponse,
     InventoryConsultationQuery,
     InventoryConsultationResponse,
+    InventoryReceiptRequest,
+    InventoryReceiptResponse,
 )
 from .ingredient_receipt import (
     IngredientReceipt,
@@ -51,6 +53,8 @@ from .inventory_movement import (
     InventoryConsumptionRequest,
     InventoryConsumptionResponse,
     BatchConsumptionDetail,
+    StockSummaryResponse,
+    BatchDetail,
 )
 from .inventory_entry import (
     EntryMode,
@@ -94,6 +98,8 @@ __all__ = [
     "InventoryItemResponse",
     "InventoryConsultationQuery",
     "InventoryConsultationResponse",
+    "InventoryReceiptRequest",
+    "InventoryReceiptResponse",
     "IngredientReceipt",
     "IngredientReceiptBase",
     "IngredientReceiptCreate",
@@ -105,6 +111,8 @@ __all__ = [
     "InventoryConsumptionRequest",
     "InventoryConsumptionResponse",
     "BatchConsumptionDetail",
+    "StockSummaryResponse",
+    "BatchDetail",
     "EntryMode",
     "InventoryEntryItem",
     "InventoryEntryRequest",

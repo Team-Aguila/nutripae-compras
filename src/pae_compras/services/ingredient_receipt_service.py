@@ -83,9 +83,11 @@ class IngredientReceiptService:
                 remaining_weight=item.quantity,
                 unit=item.unit,
                 storage_location=item.storage_location,
-                date_of_admission=receipt_data.receipt_date,
+                date_of_admission=datetime.combine(receipt_data.receipt_date, datetime.min.time()),
                 lot=item.lot,
                 expiration_date=item.expiration_date,
+                batch_number=item.lot,  # Use lot as batch number for FIFO tracking
+                initial_weight=item.quantity,  # Set initial weight to received quantity
                 minimum_threshold=0,  # Default threshold, can be updated later
             )
             await inventory_item.insert()
@@ -110,7 +112,18 @@ class IngredientReceiptService:
                 purchase_order, receipt_data.items
             )
 
-        return IngredientReceiptResponse(**new_receipt.model_dump())
+        # Convert ObjectIds to strings for response model
+        receipt_dict = new_receipt.model_dump()
+        receipt_dict["id"] = str(new_receipt.id)
+        if receipt_dict.get("purchase_order_id"):
+            receipt_dict["purchase_order_id"] = str(receipt_dict["purchase_order_id"])
+        
+        # Convert product_ids in items to strings
+        for item in receipt_dict.get("items", []):
+            if item.get("product_id"):
+                item["product_id"] = str(item["product_id"])
+        
+        return IngredientReceiptResponse(**receipt_dict)
 
     @staticmethod
     async def _update_purchase_order_status(
@@ -177,7 +190,18 @@ class IngredientReceiptService:
                 detail=f"Receipt with id {receipt_id} not found.",
             )
         
-        return IngredientReceiptResponse(**receipt.model_dump())
+        # Convert ObjectIds to strings for response model
+        receipt_dict = receipt.model_dump()
+        receipt_dict["id"] = str(receipt.id)
+        if receipt_dict.get("purchase_order_id"):
+            receipt_dict["purchase_order_id"] = str(receipt_dict["purchase_order_id"])
+        
+        # Convert product_ids in items to strings
+        for item in receipt_dict.get("items", []):
+            if item.get("product_id"):
+                item["product_id"] = str(item["product_id"])
+        
+        return IngredientReceiptResponse(**receipt_dict)
 
     @staticmethod
     async def get_receipts_by_institution(
@@ -200,7 +224,22 @@ class IngredientReceiptService:
             {"institution_id": institution_id}
         ).sort("-created_at").skip(offset).limit(limit).to_list()
         
-        return [IngredientReceiptResponse(**receipt.model_dump()) for receipt in receipts]
+        # Convert ObjectIds to strings for response models
+        result = []
+        for receipt in receipts:
+            receipt_dict = receipt.model_dump()
+            receipt_dict["id"] = str(receipt.id)
+            if receipt_dict.get("purchase_order_id"):
+                receipt_dict["purchase_order_id"] = str(receipt_dict["purchase_order_id"])
+            
+            # Convert product_ids in items to strings
+            for item in receipt_dict.get("items", []):
+                if item.get("product_id"):
+                    item["product_id"] = str(item["product_id"])
+            
+            result.append(IngredientReceiptResponse(**receipt_dict))
+        
+        return result
 
 
 ingredient_receipt_service = IngredientReceiptService() 
