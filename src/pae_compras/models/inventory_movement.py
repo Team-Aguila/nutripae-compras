@@ -1,115 +1,102 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 from enum import Enum
 
 from beanie import Document, PydanticObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class MovementType(str, Enum):
     """Types of inventory movements"""
-    RECEIPT = "receipt"  # Incoming stock from suppliers
-    USAGE = "usage"  # Outgoing stock for consumption
-    ADJUSTMENT = "adjustment"  # Manual adjustments
-    TRANSFER = "transfer"  # Transfer between locations
-    EXPIRED = "expired"  # Stock marked as expired
-    LOSS = "loss"  # Stock loss/waste
+    RECEIPT = "receipt"
+    USAGE = "usage"
+    ADJUSTMENT = "adjustment"
+    EXPIRED = "expired"
+    LOSS = "loss"
 
 
 class InventoryMovement(Document):
-    """Inventory Movement DB Model - Tracks all inventory movements for audit trail"""
-    
-    # Core movement information
-    movement_type: MovementType = Field(description="Type of inventory movement")
-    product_id: PydanticObjectId = Field(description="Reference to the product")
-    institution_id: int = Field(description="Reference to the institution from coverage module")
+    """Inventory Movement DB Model"""
+    movement_type: MovementType = Field(description="Type of movement")
+    product_id: PydanticObjectId = Field(description="REFERENCE -> products._id")
+    institution_id: int = Field(description="REFERENCE -> institutions.id from coverage module")
     storage_location: Optional[str] = Field(default=None, description="Specific storage location within institution")
-    
-    # Quantity and unit information
     quantity: float = Field(description="Quantity moved (positive for incoming, negative for outgoing)")
-    unit: str = Field(default="kg", description="Unit of measurement (kg, units, liters, etc.)")
-    
-    # Product details at time of movement
-    lot: Optional[str] = Field(default=None, description="Lot number of the product")
-    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date of the product")
-    
-    # Reference information
-    reference_id: Optional[PydanticObjectId] = Field(default=None, description="Reference to related document (receipt, order, etc.)")
+    unit: str = Field(default="kg", description="Unit of measurement")
+    lot: Optional[str] = Field(default=None, description="Lot number")
+    expiration_date: Optional[datetime] = Field(default=None, description="Expiration date for the item")
+    reference_id: Optional[PydanticObjectId] = Field(default=None, description="Reference to related document")
     reference_type: Optional[str] = Field(default=None, description="Type of reference document")
-    
-    # Movement details
-    movement_date: datetime = Field(default_factory=datetime.utcnow, description="Date of the movement")
-    notes: Optional[str] = Field(default=None, description="Additional notes about the movement")
-    
-    # User tracking
-    created_by: str = Field(description="User who created this movement")
+    movement_date: datetime = Field(description="Date of the movement")
+    notes: Optional[str] = Field(default=None, description="Additional notes")
+    created_by: str = Field(description="User who created the movement")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of document creation")
-    
-    # Soft delete
     deleted_at: Optional[datetime] = Field(default=None, description="For soft deletes. Null if not deleted")
 
     class Settings:
         name = "inventory_movements"
         indexes = [
-            "movement_type",
             "product_id",
             "institution_id",
+            "movement_type",
             "movement_date",
-            "reference_id",
-            "reference_type",
             "deleted_at"
         ]
 
 
+class BatchConsumptionDetail(BaseModel):
+    """Details of consumption from a specific batch"""
+    inventory_id: str = Field(description="String representation of inventory batch ID")
+    lot: str = Field(description="Lot number of the consumed batch")
+    consumed_quantity: float = Field(description="Quantity consumed from this batch")
+    remaining_quantity: float = Field(description="Remaining quantity in this batch after consumption")
+    expiration_date: Optional[datetime] = Field(description="Expiration date of this batch")
+    date_of_admission: datetime = Field(description="Date when this batch was added to inventory")
+
+
 class InventoryMovementResponse(BaseModel):
     """Response model for inventory movement"""
-    id: PydanticObjectId = Field(alias="_id")
+    id: str = Field(alias="_id", description="String representation of movement ID")
     movement_type: MovementType
-    product_id: PydanticObjectId
+    product_id: str = Field(description="String representation of product ID")
     institution_id: int
     storage_location: Optional[str]
     quantity: float
     unit: str
     lot: Optional[str]
     expiration_date: Optional[datetime]
-    reference_id: Optional[PydanticObjectId]
+    reference_id: Optional[str] = Field(description="String representation of reference ID")
     reference_type: Optional[str]
     movement_date: datetime
     notes: Optional[str]
     created_by: str
     created_at: datetime
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            PydanticObjectId: str
+        }
+    )
 
 
 class InventoryConsumptionRequest(BaseModel):
-    """Request model for inventory consumption with FIFO logic"""
-    product_id: PydanticObjectId = Field(description="ID of the product to consume")
+    """Request model for inventory consumption"""
+    product_id: str = Field(description="String representation of product ID")
     institution_id: int = Field(description="ID of the institution/warehouse")
-    storage_location: Optional[str] = Field(default=None, description="Specific storage location")
-    quantity: float = Field(gt=0, description="Quantity to consume (must be positive)")
+    storage_location: Optional[str] = Field(default=None, description="Storage location to consume from")
+    quantity: float = Field(gt=0, description="Quantity to consume")
     unit: str = Field(default="kg", description="Unit of measurement")
-    consumption_date: Optional[datetime] = Field(default=None, description="Date of consumption (defaults to now)")
-    reason: str = Field(description="Reason for consumption (e.g., 'menu preparation', 'manual adjustment')")
-    notes: Optional[str] = Field(default=None, description="Additional notes about the consumption")
-    consumed_by: str = Field(description="Person or system that performed the consumption")
-
-
-class BatchConsumptionDetail(BaseModel):
-    """Details of consumption from a specific batch"""
-    inventory_id: PydanticObjectId = Field(description="ID of the inventory batch")
-    lot: str = Field(description="Lot number of the batch")
-    consumed_quantity: float = Field(description="Quantity consumed from this batch")
-    remaining_quantity: float = Field(description="Remaining quantity in this batch after consumption")
-    expiration_date: datetime = Field(description="Expiration date of the batch")
-    date_of_admission: datetime = Field(description="Date when batch was admitted to inventory")
+    consumption_date: Optional[datetime] = Field(default=None, description="Date of consumption")
+    reason: str = Field(description="Reason for consumption")
+    notes: Optional[str] = Field(default=None, description="Additional notes")
+    consumed_by: str = Field(description="Person performing the consumption")
 
 
 class InventoryConsumptionResponse(BaseModel):
     """Response model for inventory consumption operations"""
     transaction_id: str = Field(description="Unique identifier for this consumption transaction")
-    product_id: PydanticObjectId = Field(description="ID of the consumed product")
+    product_id: str = Field(description="String representation of product ID")
     institution_id: int = Field(description="ID of the institution/warehouse")
     storage_location: Optional[str] = Field(description="Storage location where consumption occurred")
     total_quantity_consumed: float = Field(description="Total quantity consumed")
@@ -119,5 +106,48 @@ class InventoryConsumptionResponse(BaseModel):
     notes: Optional[str] = Field(description="Additional notes")
     consumed_by: str = Field(description="Person who performed the consumption")
     batch_details: List[BatchConsumptionDetail] = Field(description="Details of consumption from each batch")
-    movement_ids: List[PydanticObjectId] = Field(description="IDs of created inventory movement records")
-    created_at: datetime = Field(description="Timestamp when consumption was recorded") 
+    movement_ids: List[str] = Field(description="String representations of created inventory movement record IDs")
+    created_at: datetime = Field(description="Timestamp when consumption was recorded")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            PydanticObjectId: str
+        }
+    )
+
+
+class BatchDetail(BaseModel):
+    """Details of an individual inventory batch"""
+    inventory_id: str = Field(description="String representation of inventory batch ID")
+    lot: str = Field(description="Lot number")
+    remaining_weight: float = Field(description="Remaining weight in this batch")
+    date_of_admission: datetime = Field(description="Date when batch was added to inventory")
+    expiration_date: Optional[datetime] = Field(description="Expiration date of this batch")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            PydanticObjectId: str
+        }
+    )
+
+
+class StockSummaryResponse(BaseModel):
+    """Response model for stock summary endpoint"""
+    product_id: str = Field(description="String representation of product ID")
+    institution_id: int = Field(description="Institution ID")
+    storage_location: Optional[str] = Field(description="Storage location filter applied")
+    total_available_stock: float = Field(description="Total available stock across all batches")
+    number_of_batches: int = Field(description="Number of available batches")
+    oldest_batch_date: Optional[datetime] = Field(description="Date of oldest batch")
+    newest_batch_date: Optional[datetime] = Field(description="Date of newest batch")
+    batches: List[BatchDetail] = Field(description="List of available batches with FIFO ordering")
+    unit: str = Field(default="kg", description="Unit of measurement")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            PydanticObjectId: str
+        }
+    ) 

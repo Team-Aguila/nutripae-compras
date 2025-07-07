@@ -7,11 +7,74 @@ from ..models import (
     MovementType,
     InventoryConsumptionRequest,
     InventoryConsumptionResponse,
+    StockSummaryResponse,
+    InventoryReceiptRequest,
+    InventoryReceiptResponse,
 )
 from ..services import inventory_movement_service
 from ..services.inventory_movement_service import InventoryMovementService
 
 router = APIRouter()
+
+
+@router.post(
+    "/receive-inventory",
+    response_model=InventoryReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Receive Inventory (User Story 1)",
+    description="Record the reception of ingredients (inputs), with or without a purchase order, automatically updating available inventory.",
+)
+async def receive_inventory(
+    receipt_request: InventoryReceiptRequest = Body(...),
+    service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+) -> InventoryReceiptResponse:
+    """
+    Record inventory reception (User Story 1).
+    
+    This endpoint implements the complete inventory receipt process:
+    
+    **Key Features:**
+    - **Manual or Purchase Order**: Support reception with or without purchase order
+    - **Batch Creation**: Creates new inventory batch with unique tracking
+    - **Automatic Updates**: Updates available inventory automatically
+    - **Audit Trail**: Creates detailed movement records for accountability
+    - **Validation**: Ensures product exists and batch numbers are unique
+    
+    **Request Body:**
+    ```json
+    {
+        "product_id": "648f8f8f8f8f8f8f8f8f8f8f",
+        "institution_id": 1,
+        "storage_location": "warehouse-01-A1",
+        "quantity_received": 25.5,
+        "unit_of_measure": "kg",
+        "expiration_date": "2024-06-15",
+        "batch_number": "BATCH-2024-001",
+        "purchase_order_id": "PO-2024-123",
+        "received_by": "warehouse_manager_juan",
+        "reception_date": "2024-01-15T08:30:00Z",
+        "notes": "Fresh vegetables delivery, good quality"
+    }
+    ```
+    
+    **Response:**
+    - Complete receipt details including batch and movement IDs
+    - Transaction ID for tracking
+    - Created inventory batch information
+    - Audit trail movement record
+    
+    **Error Conditions:**
+    - 404: Product not found
+    - 409: Batch number already exists
+    - 400: Validation errors (invalid quantity, missing fields, etc.)
+    
+    **Acceptance Criteria Met:**
+    - ✅ Allow manual entry (without purchase order)
+    - ✅ Record: product_id, storage_location_id, quantity_received, unit_of_measure, expiration_date, batch_number
+    - ✅ Create new inventory batch record in database
+    - ✅ Log event as credit (+) movement in immutable ledger
+    """
+    return await service.receive_inventory(receipt_request)
 
 
 @router.get(
@@ -91,7 +154,7 @@ async def get_current_stock(
     )
     
     return {
-        "product_id": product_id,
+        "product_id": str(product_id),
         "institution_id": institution_id,
         "storage_location": storage_location,
         "lot": lot,
@@ -202,7 +265,7 @@ async def consume_inventory_fifo(
 
 @router.get(
     "/stock-summary/{product_id}/{institution_id}",
-    response_model=dict,
+    response_model=StockSummaryResponse,
     summary="Get Available Stock Summary",
     description="Get detailed summary of available stock for a product with FIFO batch information.",
 )
@@ -213,7 +276,7 @@ async def get_available_stock_summary(
         default=None, description="Filter by storage location"
     ),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
-) -> dict:
+) -> StockSummaryResponse:
     """
     Get comprehensive summary of available stock for a product.
     

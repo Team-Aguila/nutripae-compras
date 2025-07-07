@@ -13,6 +13,8 @@ from ..models import (
     InventoryConsumptionRequest,
     InventoryConsumptionResponse,
     BatchConsumptionDetail,
+    InventoryReceiptRequest,
+    InventoryReceiptResponse,
 )
 
 
@@ -97,7 +99,14 @@ class InventoryMovementService:
         
         await movement.insert()
         
-        return InventoryMovementResponse(**movement.model_dump())
+        # Convert ObjectIds to strings for response model
+        movement_dict = movement.model_dump()
+        movement_dict["id"] = str(movement.id)
+        movement_dict["product_id"] = str(movement.product_id)
+        if movement_dict.get("reference_id"):
+            movement_dict["reference_id"] = str(movement_dict["reference_id"])
+        
+        return InventoryMovementResponse(**movement_dict)
 
     @staticmethod
     async def create_receipt_movement(
@@ -163,7 +172,17 @@ class InventoryMovementService:
             
         movements = await InventoryMovement.find(query).sort("-movement_date").skip(offset).limit(limit).to_list()
         
-        return [InventoryMovementResponse(**movement.model_dump()) for movement in movements]
+        # Convert ObjectIds to strings for response models
+        result = []
+        for movement in movements:
+            movement_dict = movement.model_dump()
+            movement_dict["id"] = str(movement.id)
+            movement_dict["product_id"] = str(movement.product_id)
+            if movement_dict.get("reference_id"):
+                movement_dict["reference_id"] = str(movement_dict["reference_id"])
+            result.append(InventoryMovementResponse(**movement_dict))
+        
+        return result
 
     @staticmethod
     async def get_current_stock(
@@ -230,8 +249,17 @@ class InventoryMovementService:
         # Generate unique transaction ID
         transaction_id = str(uuid.uuid4())
         
+        # Convert string product_id to PydanticObjectId for database operations
+        try:
+            product_object_id = PydanticObjectId(consumption_request.product_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid product_id format: {consumption_request.product_id}"
+            )
+        
         # Validate product exists
-        product = await Product.get(consumption_request.product_id)
+        product = await Product.get(product_object_id)
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -240,7 +268,7 @@ class InventoryMovementService:
         
         # Find available inventory batches with FIFO ordering
         available_batches = await InventoryMovementService._get_available_batches_fifo(
-            product_id=consumption_request.product_id,
+            product_id=product_object_id,
             institution_id=consumption_request.institution_id,
             storage_location=consumption_request.storage_location,
         )
@@ -248,7 +276,7 @@ class InventoryMovementService:
         # Calculate total available stock
         total_available = sum(batch.remaining_weight for batch in available_batches)
         
-        # Validate sufficient stock
+        # Validate sufficient stock (User Story 2 requirement)
         if total_available < consumption_request.quantity:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -268,21 +296,42 @@ class InventoryMovementService:
             # Calculate how much to consume from this batch
             consume_from_batch = min(remaining_to_consume, batch.remaining_weight)
             
-            # Update batch remaining weight
-            batch.remaining_weight -= consume_from_batch
+            # Update batch remaining weight (allow zero to handle complete consumption)
+            new_remaining_weight = batch.remaining_weight - consume_from_batch
+            batch.remaining_weight = max(0.0, new_remaining_weight)  # Ensure non-negative
             batch.updated_at = datetime.utcnow()
-            await batch.save()
+            
+            # Save batch with proper error handling
+            try:
+                await batch.save()
+            except Exception as e:
+                # If save fails, this is a critical error that should stop the transaction
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update inventory batch {batch.id} remaining weight: {str(e)}"
+                )
             
             # Create movement record for this batch consumption
+            # Convert date to datetime if needed
+            batch_expiration_datetime = None
+            if batch.expiration_date:
+                if isinstance(batch.expiration_date, datetime):
+                    batch_expiration_datetime = batch.expiration_date
+                else:
+                    # Convert date to datetime at midnight
+                    from datetime import date, time
+                    if isinstance(batch.expiration_date, date):
+                        batch_expiration_datetime = datetime.combine(batch.expiration_date, time.min)
+            
             movement = await InventoryMovementService.create_movement(
                 movement_type=MovementType.USAGE,
-                product_id=consumption_request.product_id,
+                product_id=product_object_id,
                 institution_id=consumption_request.institution_id,
                 quantity=-consume_from_batch,  # Negative for outgoing
                 unit=consumption_request.unit,
                 storage_location=consumption_request.storage_location,
                 lot=batch.lot,
-                expiration_date=batch.expiration_date,
+                expiration_date=batch_expiration_datetime,
                 reference_id=None,  # Could be linked to a consumption order/recipe
                 reference_type="inventory_consumption",
                 notes=f"FIFO consumption - {consumption_request.reason}. Transaction ID: {transaction_id}. {consumption_request.notes or ''}",
@@ -290,15 +339,15 @@ class InventoryMovementService:
                 movement_date=consumption_date,
             )
             
-            movement_ids.append(movement.id)
+            movement_ids.append(str(movement.id))
             
             # Record batch consumption details
             batch_detail = BatchConsumptionDetail(
-                inventory_id=batch.id,
+                inventory_id=str(batch.id),
                 lot=batch.lot,
                 consumed_quantity=consume_from_batch,
                 remaining_quantity=batch.remaining_weight,
-                expiration_date=batch.expiration_date,
+                expiration_date=batch_expiration_datetime,
                 date_of_admission=batch.date_of_admission,
             )
             batch_details.append(batch_detail)
@@ -320,6 +369,128 @@ class InventoryMovementService:
             consumed_by=consumption_request.consumed_by,
             batch_details=batch_details,
             movement_ids=movement_ids,
+            created_at=datetime.utcnow(),
+        )
+        
+        return response
+
+    @staticmethod
+    async def receive_inventory(
+        receipt_request: InventoryReceiptRequest
+    ) -> InventoryReceiptResponse:
+        """
+        Receive inventory and create new batch (User Story 1).
+        
+        This method:
+        1. Validates the product exists
+        2. Creates a new inventory batch record
+        3. Creates a credit (+) movement in the immutable ledger
+        4. Returns detailed receipt information
+        
+        Args:
+            receipt_request: Details of the inventory receipt
+            
+        Returns:
+            InventoryReceiptResponse: Details of the receipt operation
+            
+        Raises:
+            HTTPException: If validation errors or product not found
+        """
+        # Generate unique transaction ID
+        transaction_id = str(uuid.uuid4())
+        
+        # Convert string product_id to PydanticObjectId for database operations
+        try:
+            product_object_id = PydanticObjectId(receipt_request.product_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid product_id format: {receipt_request.product_id}"
+            )
+        
+        # Validate product exists
+        product = await Product.get(product_object_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with id {receipt_request.product_id} not found"
+            )
+        
+        # Validate storage location is provided
+        if not receipt_request.storage_location or receipt_request.storage_location.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Storage location is required and cannot be empty"
+            )
+        
+        # Validate batch number is unique within the same product and institution
+        existing_batch = await Inventory.find_one({
+            "product_id": product_object_id,
+            "institution_id": receipt_request.institution_id,
+            "batch_number": receipt_request.batch_number,
+            "deleted_at": None
+        })
+        
+        if existing_batch:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Batch number '{receipt_request.batch_number}' already exists for this product at this institution"
+            )
+        
+        # Set reception date
+        reception_date = receipt_request.reception_date or datetime.utcnow()
+        
+        # Create new inventory batch
+        inventory_batch = Inventory(
+            product_id=product_object_id,
+            institution_id=receipt_request.institution_id,
+            remaining_weight=receipt_request.quantity_received,
+            initial_weight=receipt_request.quantity_received,
+            unit=receipt_request.unit_of_measure,
+            storage_location=receipt_request.storage_location,
+            date_of_admission=reception_date,
+            lot=receipt_request.batch_number,  # Use batch_number as lot for consistency
+            batch_number=receipt_request.batch_number,
+            expiration_date=receipt_request.expiration_date,
+            minimum_threshold=0.0,  # Can be updated later via API
+        )
+        
+        # Save the inventory batch
+        await inventory_batch.insert()
+        
+        # Create receipt movement record (credit/positive movement)
+        movement = await InventoryMovementService.create_movement(
+            movement_type=MovementType.RECEIPT,
+            product_id=product_object_id,
+            institution_id=receipt_request.institution_id,
+            quantity=receipt_request.quantity_received,  # Positive for incoming
+            unit=receipt_request.unit_of_measure,
+            storage_location=receipt_request.storage_location,
+            lot=receipt_request.batch_number,
+            expiration_date=datetime.combine(receipt_request.expiration_date, datetime.min.time()),
+            reference_id=PydanticObjectId(receipt_request.purchase_order_id) if receipt_request.purchase_order_id else None,
+            reference_type="purchase_order" if receipt_request.purchase_order_id else "manual_receipt",
+            notes=f"Inventory receipt - Transaction ID: {transaction_id}. {receipt_request.notes or ''}",
+            created_by=receipt_request.received_by,
+            movement_date=reception_date,
+        )
+        
+        # Create response
+        response = InventoryReceiptResponse(
+            transaction_id=transaction_id,
+            inventory_id=str(inventory_batch.id),
+            product_id=receipt_request.product_id,
+            institution_id=receipt_request.institution_id,
+            storage_location=receipt_request.storage_location,
+            quantity_received=receipt_request.quantity_received,
+            unit_of_measure=receipt_request.unit_of_measure,
+            expiration_date=receipt_request.expiration_date,
+            batch_number=receipt_request.batch_number,
+            purchase_order_id=receipt_request.purchase_order_id,
+            received_by=receipt_request.received_by,
+            reception_date=reception_date,
+            movement_id=str(movement.id),
+            notes=receipt_request.notes,
             created_at=datetime.utcnow(),
         )
         
@@ -362,7 +533,7 @@ class InventoryMovementService:
         product_id: PydanticObjectId,
         institution_id: int,
         storage_location: Optional[str] = None,
-    ) -> dict:
+    ):
         """
         Get summary of available stock for a product.
         
@@ -372,8 +543,10 @@ class InventoryMovementService:
             storage_location: Optional storage location filter
             
         Returns:
-            Dictionary with stock summary information
+            StockSummaryResponse compatible data
         """
+        from ..models import StockSummaryResponse, BatchDetail
+        
         batches = await InventoryMovementService._get_available_batches_fifo(
             product_id=product_id,
             institution_id=institution_id,
@@ -387,25 +560,29 @@ class InventoryMovementService:
         oldest_batch = batches[0] if batches else None
         newest_batch = batches[-1] if batches else None
         
-        return {
-            "product_id": product_id,
-            "institution_id": institution_id,
-            "storage_location": storage_location,
-            "total_available_stock": total_stock,
-            "number_of_batches": batch_count,
-            "oldest_batch_date": oldest_batch.date_of_admission if oldest_batch else None,
-            "newest_batch_date": newest_batch.date_of_admission if newest_batch else None,
-            "batches": [
-                {
-                    "inventory_id": batch.id,
-                    "lot": batch.lot,
-                    "remaining_weight": batch.remaining_weight,
-                    "date_of_admission": batch.date_of_admission,
-                    "expiration_date": batch.expiration_date,
-                }
-                for batch in batches
-            ],
-        }
+        # Convert batches to BatchDetail models
+        batch_details = [
+            BatchDetail(
+                inventory_id=str(batch.id),
+                lot=batch.lot,
+                remaining_weight=batch.remaining_weight,
+                date_of_admission=batch.date_of_admission,
+                expiration_date=batch.expiration_date,
+            )
+            for batch in batches
+        ]
+        
+        return StockSummaryResponse(
+            product_id=str(product_id),
+            institution_id=institution_id,
+            storage_location=storage_location,
+            total_available_stock=total_stock,
+            number_of_batches=batch_count,
+            oldest_batch_date=oldest_batch.date_of_admission if oldest_batch else None,
+            newest_batch_date=newest_batch.date_of_admission if newest_batch else None,
+            batches=batch_details,
+            unit="kg",
+        )
 
 
 # Create service instance
