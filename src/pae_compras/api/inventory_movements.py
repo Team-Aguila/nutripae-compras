@@ -10,6 +10,8 @@ from ..models import (
     StockSummaryResponse,
     InventoryReceiptRequest,
     InventoryReceiptResponse,
+    ManualInventoryAdjustmentRequest,
+    ManualInventoryAdjustmentResponse,
 )
 from ..services import inventory_movement_service
 from ..services.inventory_movement_service import InventoryMovementService
@@ -165,50 +167,65 @@ async def get_current_stock(
 
 @router.post(
     "/manual-adjustment",
-    response_model=InventoryMovementResponse,
+    response_model=ManualInventoryAdjustmentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create Manual Inventory Adjustment",
-    description="Create a manual inventory adjustment movement for stock corrections.",
+    description="Create a manual inventory adjustment with comprehensive validation and stock protection.",
 )
 async def create_manual_adjustment(
-    product_id: PydanticObjectId,
-    institution_id: int,
-    quantity: float,
-    unit: str = "kg",
-    storage_location: Optional[str] = Query(default=None, description="Storage location"),
-    lot: Optional[str] = Query(default=None, description="Lot number"),
-    notes: Optional[str] = Query(default=None, description="Adjustment notes"),
+    adjustment_request: ManualInventoryAdjustmentRequest = Body(...),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
-) -> InventoryMovementResponse:
+) -> ManualInventoryAdjustmentResponse:
     """
-    Create a manual inventory adjustment movement.
+    Create a manual inventory adjustment for stock corrections.
     
-    **Parameters:**
-    - **product_id**: The ID of the product
-    - **institution_id**: The ID of the institution
-    - **quantity**: The adjustment quantity (positive for increase, negative for decrease)
-    - **unit**: Unit of measurement (default: kg)
-    - **storage_location**: (Optional) Storage location
-    - **lot**: (Optional) Lot number
-    - **notes**: (Optional) Notes explaining the adjustment
+    This endpoint implements critical business logic for inventory auditors:
     
-    **Returns:**
-    Created inventory movement record.
+    **Key Features:**
+    - **Stock Protection**: Prevents adjustments that would result in negative stock
+    - **Comprehensive Validation**: Validates product, inventory batch, and unit consistency
+    - **Audit Trail**: Creates detailed movement records with reason and notes
+    - **Real-time Updates**: Updates actual inventory levels immediately
+    - **Transaction Tracking**: Provides unique transaction IDs for traceability
+    
+    **Request Body:**
+    ```json
+    {
+        "product_id": "648f8f8f8f8f8f8f8f8f8f8f",
+        "inventory_id": "648f8f8f8f8f8f8f8f8f8f8a",
+        "quantity": -5.0,
+        "unit": "kg",
+        "reason": "Physical count discrepancy - found 5kg less than expected",
+        "notes": "Verified during monthly inventory audit",
+        "adjusted_by": "auditor_maria"
+    }
+    ```
+    
+    **Business Rules:**
+    - **Negative Stock Prevention**: If current stock is 50kg and adjustment is -60kg, the transaction will be rejected
+    - **Unit Consistency**: Adjustment unit must match the inventory batch unit
+    - **Mandatory Reason**: Every adjustment must include a reason for audit purposes
+    - **Product Validation**: Product and inventory batch must exist and be active
+    
+    **Response:**
+    - Complete adjustment details including before/after stock levels
+    - Transaction ID for tracking and audit purposes
+    - Movement ID for the created audit trail record
+    - Timestamp information for compliance
+    
+    **Error Conditions:**
+    - 400: Adjustment would result in negative stock
+    - 400: Unit mismatch between adjustment and inventory batch
+    - 404: Product or inventory batch not found
+    - 400: Invalid ID formats or missing required fields
+    
+    **Use Cases:**
+    - Correct discrepancies found during physical counts
+    - Record spoilage or damage losses
+    - Adjust for measurement corrections
+    - Document found/missing inventory
     """
-    # In a real application, created_by would come from an authentication dependency
-    created_by = "warehouse_manager_test"
-    
-    return await service.create_movement(
-        movement_type=MovementType.ADJUSTMENT,
-        product_id=product_id,
-        institution_id=institution_id,
-        quantity=quantity,
-        unit=unit,
-        storage_location=storage_location,
-        lot=lot,
-        notes=notes,
-        created_by=created_by,
-    )
+    return await service.create_manual_adjustment(adjustment_request)
 
 
 @router.post(

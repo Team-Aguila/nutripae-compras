@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # MongoDB Configuration
     mongo_host: str = Field(default="localhost", description="MongoDB host")
-    mongo_port: int = Field(default=27017, description="MongoDB port")
+    mongo_port: int = Field(default=27018, description="MongoDB port")
     mongo_user: str = Field(default="root", description="MongoDB username")
     mongo_password: str = Field(default="example", description="MongoDB password")
     mongo_db_name: str = Field(default="pae_compras", description="MongoDB database name")

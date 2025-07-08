@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time
 from typing import List, Optional
 from fastapi import HTTPException, status
 from beanie import PydanticObjectId
@@ -15,6 +15,8 @@ from ..models import (
     BatchConsumptionDetail,
     InventoryReceiptRequest,
     InventoryReceiptResponse,
+    ManualInventoryAdjustmentRequest,
+    ManualInventoryAdjustmentResponse,
 )
 
 
@@ -497,6 +499,130 @@ class InventoryMovementService:
         return response
 
     @staticmethod
+    async def create_manual_adjustment(
+        adjustment_request: ManualInventoryAdjustmentRequest
+    ) -> ManualInventoryAdjustmentResponse:
+        """
+        Create a manual inventory adjustment with comprehensive validation.
+        
+        This method implements critical business logic:
+        - Validates that the inventory batch exists
+        - Validates that the product exists
+        - Prevents adjustments that would result in negative stock
+        - Updates the actual inventory record
+        - Creates an audit trail movement record
+        
+        Args:
+            adjustment_request: The adjustment request data
+            
+        Returns:
+            ManualInventoryAdjustmentResponse: Complete adjustment details
+            
+        Raises:
+            HTTPException: For validation errors or business rule violations
+        """
+        # Convert string IDs to ObjectIds
+        try:
+            product_obj_id = PydanticObjectId(adjustment_request.product_id)
+            inventory_obj_id = PydanticObjectId(adjustment_request.inventory_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid product_id or inventory_id format"
+            )
+        
+        # Validate that the product exists
+        product = await Product.get(product_obj_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with id {adjustment_request.product_id} not found"
+            )
+        
+        # Validate that the inventory batch exists and is not deleted
+        inventory_batch = await Inventory.get(inventory_obj_id)
+        if not inventory_batch or inventory_batch.deleted_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Inventory batch with id {adjustment_request.inventory_id} not found"
+            )
+        
+        # Validate that the inventory batch belongs to the specified product
+        if inventory_batch.product_id != product_obj_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inventory batch does not belong to the specified product"
+            )
+        
+        # Validate that units match
+        if adjustment_request.unit != inventory_batch.unit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unit mismatch. Inventory batch uses '{inventory_batch.unit}', adjustment requests '{adjustment_request.unit}'"
+            )
+        
+        # Store original stock level
+        previous_stock = inventory_batch.remaining_weight
+        
+        # Calculate new stock level after adjustment
+        new_stock = previous_stock + adjustment_request.quantity
+        
+        # CRITICAL BUSINESS LOGIC: Prevent negative stock
+        if new_stock < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Adjustment would result in negative stock. Current stock: {previous_stock}, "
+                       f"adjustment: {adjustment_request.quantity}, resulting stock: {new_stock}"
+            )
+        
+        # Generate transaction ID for traceability
+        transaction_id = f"ADJ-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8]}"
+        adjustment_date = datetime.utcnow()
+        
+        # Update the inventory batch
+        inventory_batch.remaining_weight = new_stock
+        inventory_batch.updated_at = adjustment_date
+        await inventory_batch.save()
+        
+        # Create inventory movement record for audit trail
+        movement = InventoryMovement(
+            movement_type=MovementType.ADJUSTMENT,
+            product_id=product_obj_id,
+            institution_id=inventory_batch.institution_id,
+            storage_location=inventory_batch.storage_location,
+            quantity=adjustment_request.quantity,
+            unit=adjustment_request.unit,
+            lot=inventory_batch.lot,
+            expiration_date=datetime.combine(inventory_batch.expiration_date, time.min),
+            reference_id=inventory_obj_id,
+            reference_type="manual_adjustment",
+            movement_date=adjustment_date,
+            notes=f"Manual adjustment: {adjustment_request.reason}. {adjustment_request.notes or ''}".strip(),
+            created_by=adjustment_request.adjusted_by or "inventory_auditor",
+        )
+        
+        await movement.insert()
+        
+        # Create response
+        return ManualInventoryAdjustmentResponse(
+            transaction_id=transaction_id,
+            inventory_id=adjustment_request.inventory_id,
+            product_id=adjustment_request.product_id,
+            institution_id=inventory_batch.institution_id,
+            storage_location=inventory_batch.storage_location,
+            adjustment_quantity=adjustment_request.quantity,
+            unit=adjustment_request.unit,
+            reason=adjustment_request.reason,
+            notes=adjustment_request.notes,
+            adjusted_by=adjustment_request.adjusted_by or "inventory_auditor",
+            previous_stock=previous_stock,
+            new_stock=new_stock,
+            movement_id=str(movement.id),
+            adjustment_date=adjustment_date,
+            created_at=adjustment_date,
+        )
+
+    @staticmethod
     async def _get_available_batches_fifo(
         product_id: PydanticObjectId,
         institution_id: int,
@@ -567,7 +693,7 @@ class InventoryMovementService:
                 lot=batch.lot,
                 remaining_weight=batch.remaining_weight,
                 date_of_admission=batch.date_of_admission,
-                expiration_date=batch.expiration_date,
+                expiration_date=datetime.combine(batch.expiration_date, time.min),
             )
             for batch in batches
         ]

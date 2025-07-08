@@ -150,4 +150,45 @@ class StockSummaryResponse(BaseModel):
         json_encoders={
             PydanticObjectId: str
         }
+    )
+
+
+class ManualInventoryAdjustmentRequest(BaseModel):
+    """Request model for manual inventory adjustments"""
+    product_id: str = Field(description="String representation of product ID")
+    inventory_id: str = Field(description="String representation of inventory batch ID")
+    quantity: float = Field(description="Adjustment quantity (positive for additions, negative for subtractions)")
+    unit: str = Field(default="kg", description="Unit of measurement")
+    reason: str = Field(min_length=1, description="Mandatory reason for the adjustment")
+    notes: Optional[str] = Field(default=None, description="Additional notes for the adjustment")
+    adjusted_by: Optional[str] = Field(default="inventory_auditor", description="Person performing the adjustment")
+
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+
+
+class ManualInventoryAdjustmentResponse(BaseModel):
+    """Response model for manual inventory adjustments"""
+    transaction_id: str = Field(description="Unique identifier for this adjustment transaction")
+    inventory_id: str = Field(description="String representation of inventory batch ID")
+    product_id: str = Field(description="String representation of product ID")
+    institution_id: int = Field(description="Institution ID")
+    storage_location: Optional[str] = Field(description="Storage location")
+    adjustment_quantity: float = Field(description="Adjustment quantity applied")
+    unit: str = Field(description="Unit of measurement")
+    reason: str = Field(description="Reason for the adjustment")
+    notes: Optional[str] = Field(description="Additional notes")
+    adjusted_by: str = Field(description="Person who performed the adjustment")
+    previous_stock: float = Field(description="Stock level before adjustment")
+    new_stock: float = Field(description="Stock level after adjustment")
+    movement_id: str = Field(description="String representation of created movement record ID")
+    adjustment_date: datetime = Field(description="Date and time of adjustment")
+    created_at: datetime = Field(description="Timestamp when adjustment was recorded")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={
+            PydanticObjectId: str
+        }
     ) 

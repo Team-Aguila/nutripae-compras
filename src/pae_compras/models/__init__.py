@@ -55,6 +55,8 @@ from .inventory_movement import (
     BatchConsumptionDetail,
     StockSummaryResponse,
     BatchDetail,
+    ManualInventoryAdjustmentRequest,
+    ManualInventoryAdjustmentResponse,
 )
 from .inventory_entry import (
     EntryMode,
@@ -113,6 +115,8 @@ __all__ = [
     "BatchConsumptionDetail",
     "StockSummaryResponse",
     "BatchDetail",
+    "ManualInventoryAdjustmentRequest",
+    "ManualInventoryAdjustmentResponse",
     "EntryMode",
     "InventoryEntryItem",
     "InventoryEntryRequest",
