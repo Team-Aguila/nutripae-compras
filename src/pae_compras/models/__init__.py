@@ -28,7 +28,8 @@ from .product import (
     ProductCreate, 
     ProductUpdate, 
     ProductResponse, 
-    ProductListResponse
+    ProductListResponse,
+    ShrinkageFactorUpdate
 )
 from .inventory import (
     Inventory,

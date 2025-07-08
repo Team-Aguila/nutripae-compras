@@ -7,6 +7,7 @@ from ..models import (
     ProductUpdate,
     ProductResponse,
     ProductListResponse,
+    ShrinkageFactorUpdate,
 )
 from ..services import product_service
 from ..services.product_service import ProductService
@@ -228,3 +229,67 @@ async def delete_product(
     
     await service.delete_product(product_id, deleted_by)
     # FastAPI automatically returns 204 No Content for None return with the decorator 
+
+
+@router.patch(
+    "/{product_id}/shrinkage",
+    response_model=ProductResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update Product Shrinkage Factor",
+    description="Update the shrinkage factor for a specific product to account for processing losses.",
+)
+async def update_product_shrinkage_factor(
+    product_id: PydanticObjectId,
+    shrinkage_data: ShrinkageFactorUpdate,
+    service: ProductService = Depends(lambda: product_service),
+) -> ProductResponse:
+    """
+    Update the shrinkage factor for a specific product.
+
+    **Parameters:**
+    - **product_id**: The unique ID of the product to update
+
+    **Request Body:**
+    - **shrinkage_factor**: Loss factor between 0.0 and 1.0 (e.g., 0.15 for 15% loss)
+
+    **Shrinkage Factor Explanation:**
+    The shrinkage factor accounts for predictable processing losses such as:
+    - Peeling vegetables (potato skins, onion layers)
+    - Cooking losses (water evaporation, fat rendering)
+    - Trimming waste (fat removal, damaged portions)
+    - General handling losses
+
+    **Calculation Formula:**
+    ```
+    gross_quantity_needed = net_quantity_needed * (1 + shrinkage_factor)
+    ```
+
+    **Examples:**
+    - If 1kg of peeled potatoes is needed (net) and shrinkage factor is 0.20 (20%), 
+      the system will calculate 1.2kg of raw potatoes needed (gross)
+    - For 500g of trimmed meat with 0.15 (15%) shrinkage, 
+      575g of raw meat should be ordered
+
+    **Response:**
+    Returns the updated product object with new shrinkage factor and 200 OK status.
+
+    **Error Responses:**
+    - **404 Not Found**: Product not found or has been soft-deleted
+    - **422 Unprocessable Entity**: Invalid shrinkage factor (must be 0.0-1.0)
+    - **500 Internal Server Error**: Server error during update
+
+    **Use Cases:**
+    - Set initial shrinkage factors for new products
+    - Adjust factors based on historical loss data
+    - Account for seasonal variations in product quality
+    - Optimize purchasing to reduce waste
+    """
+    # In a real application, updated_by would come from an authentication dependency
+    updated_by = "inventory_manager_test"
+    
+    updated_product = await service.update_shrinkage_factor(
+        product_id, 
+        shrinkage_data.shrinkage_factor, 
+        updated_by
+    )
+    return ProductResponse(**updated_product.model_dump()) 

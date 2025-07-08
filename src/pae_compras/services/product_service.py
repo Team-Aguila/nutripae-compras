@@ -116,7 +116,7 @@ class ProductService:
         product = await ProductService.get_product_by_id(product_id)
         
         # Update fields (excluding immutable fields like provider_id, created_at, etc.)
-        allowed_fields = ["name", "weight", "weekly_availability", "life_time"]
+        allowed_fields = ["name", "weight", "weekly_availability", "life_time", "shrinkage_factor"]
         
         for field, value in update_data.items():
             if field in allowed_fields and value is not None:
@@ -163,6 +163,49 @@ class ProductService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete product: {str(e)}"
+            )
+
+    @staticmethod
+    async def update_shrinkage_factor(
+        product_id: PydanticObjectId,
+        shrinkage_factor: float,
+        updated_by: str = "system"
+    ) -> Product:
+        """
+        Update the shrinkage factor for a specific product.
+        
+        Args:
+            product_id: The ID of the product to update
+            shrinkage_factor: New shrinkage factor value (0.0 to 1.0)
+            updated_by: User who updated the product
+            
+        Returns:
+            Product: Updated product
+            
+        Raises:
+            HTTPException: If product not found, deleted, or update fails
+        """
+        # Validate shrinkage factor range
+        if not (0.0 <= shrinkage_factor <= 1.0):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Shrinkage factor must be between 0.0 and 1.0"
+            )
+        
+        # Get the product first to ensure it exists and is not deleted
+        product = await ProductService.get_product_by_id(product_id)
+        
+        # Update shrinkage factor
+        product.shrinkage_factor = shrinkage_factor
+        product.updated_at = datetime.utcnow()
+        
+        try:
+            await product.save()
+            return product
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update product shrinkage factor: {str(e)}"
             )
 
     @staticmethod

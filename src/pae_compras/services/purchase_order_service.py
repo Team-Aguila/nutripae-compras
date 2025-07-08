@@ -276,4 +276,45 @@ class PurchaseOrderService:
 
         return PurchaseOrderResponse(**new_order.model_dump())
 
+    @staticmethod
+    async def calculate_gross_quantity_with_shrinkage(
+        net_quantity_needed: float, 
+        product_id: PydanticObjectId
+    ) -> float:
+        """
+        Calculate gross quantity needed accounting for shrinkage factor.
+        
+        This method demonstrates how to apply the shrinkage factor to convert
+        net quantity (what you need after processing) to gross quantity 
+        (what you need to order to account for losses).
+        
+        Formula: gross_quantity_needed = net_quantity_needed * (1 + product.shrinkage_factor)
+        
+        Args:
+            net_quantity_needed: The final quantity needed after processing
+            product_id: ID of the product to get shrinkage factor from
+            
+        Returns:
+            float: Gross quantity that should be ordered
+            
+        Example:
+            - Net quantity needed: 1.0 kg of peeled potatoes
+            - Product shrinkage factor: 0.20 (20% loss from peeling)
+            - Gross quantity calculated: 1.0 * (1 + 0.20) = 1.2 kg raw potatoes
+        """
+        from ..models import Product
+        
+        # Get the product to access its shrinkage factor
+        product = await Product.get(product_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with id {product_id} not found"
+            )
+        
+        # Apply shrinkage factor formula
+        gross_quantity = net_quantity_needed * (1 + product.shrinkage_factor)
+        
+        return gross_quantity
+
 purchase_order_service = PurchaseOrderService() 
