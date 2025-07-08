@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     mongo_db_name: str = Field(default="pae_compras", description="MongoDB database name")
     mongo_auth_db: str = Field(default="admin", description="MongoDB authentication database")
     
+    # External Services Configuration
+    coverage_service_url: str = Field(default="http://127.0.0.1:8000", description="Coverage Service URL")
+    menu_service_url: str = Field(default="http://127.0.0.1:8001", description="Menu Service URL")
+    
     # Environment-specific settings
     environment: str = Field(default="development", description="Application environment")
     debug: bool = Field(default=True, description="Debug mode")

@@ -70,6 +70,22 @@ from .inventory_entry import (
     InventoryEntrySearchResponse,
     InventoryEntryStats,
 )
+from .purchase_calculation import (
+    Coverage,
+    PurchaseCalculationRequest,
+    PurchaseCalculationResponse,
+    CalculationPeriod,
+    PurchaseListItem,
+    CoverageServiceResponse,
+    MenuServiceResponse,
+    CampusInfo,
+    BeneficiaryCount,
+    DailyMenu,
+    DishInfo,
+    IngredientInfo,
+    IngredientCalculation,
+    DailyIngredientNeed,
+)
 
 __all__ = [
     "PurchaseOrder",
@@ -127,4 +143,18 @@ __all__ = [
     "InventoryEntrySearchQuery",
     "InventoryEntrySearchResponse",
     "InventoryEntryStats",
+    "Coverage",
+    "PurchaseCalculationRequest",
+    "PurchaseCalculationResponse",
+    "CalculationPeriod",
+    "PurchaseListItem",
+    "CoverageServiceResponse",
+    "MenuServiceResponse",
+    "CampusInfo",
+    "BeneficiaryCount",
+    "DailyMenu",
+    "DishInfo",
+    "IngredientInfo",
+    "IngredientCalculation",
+    "DailyIngredientNeed",
 ]
