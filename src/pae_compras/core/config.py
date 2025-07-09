@@ -11,11 +11,15 @@ class Settings(BaseSettings):
     
     # MongoDB Configuration
     mongo_host: str = Field(default="localhost", description="MongoDB host")
-    mongo_port: int = Field(default=27017, description="MongoDB port")
+    mongo_port: int = Field(default=27018, description="MongoDB port")
     mongo_user: str = Field(default="root", description="MongoDB username")
     mongo_password: str = Field(default="example", description="MongoDB password")
     mongo_db_name: str = Field(default="pae_compras", description="MongoDB database name")
     mongo_auth_db: str = Field(default="admin", description="MongoDB authentication database")
+    
+    # External Services Configuration
+    coverage_service_url: str = Field(default="http://127.0.0.1:8000", description="Coverage Service URL")
+    menu_service_url: str = Field(default="http://127.0.0.1:8001", description="Menu Service URL")
     
     # Environment-specific settings
     environment: str = Field(default="development", description="Application environment")

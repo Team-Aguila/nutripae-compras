@@ -1,7 +1,7 @@
 {
-  "name": "@team-aguila/pae-menus-client",
+  "name": "@team-aguila/pae-compras-client",
   "version": "0.1.0",
-  "description": "Cliente de TypeScript tipado para la API de Menus del PAE",
+  "description": "Cliente de TypeScript tipado para la API de Compras del PAE",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "files": [
