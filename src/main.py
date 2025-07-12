@@ -109,7 +109,7 @@ app.add_middleware(
 register_models([PurchaseOrder, Provider, Product, Inventory, IngredientReceipt, InventoryMovement])
 
 # Include purchase-specific routes
-app.include_router(api_router, prefix="/api/v1/compras", tags=["Compras"])
+app.include_router(api_router, prefix=settings.API_PREFIX_STR, tags=["Compras"])
 
 @app.get("/")
 def read_root():
