@@ -3,7 +3,7 @@ from beanie import PydanticObjectId
 from typing import Optional
 from datetime import date
 
-from ..models import (
+from models import (
     PurchaseOrderCreate, 
     PurchaseOrderResponse, 
     MarkShippedResponse,
@@ -13,8 +13,9 @@ from ..models import (
     PaginatedPurchaseOrderResponse,
     OrderStatus,
 )
-from ..services import purchase_order_service
-from ..services.purchase_order_service import PurchaseOrderService
+from services import purchase_order_service
+from services.purchase_order_service import PurchaseOrderService
+from core.dependencies import require_create, require_read, require_list, require_delete, require_update
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ async def list_purchase_orders(
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     limit: int = Query(10, ge=1, le=100, description="Number of items per page (max 100)"),
     service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+    current_user: dict = Depends(require_list()),
 ) -> PaginatedPurchaseOrderResponse:
     """
     Lists purchase orders with filtering and pagination.
@@ -83,6 +85,7 @@ async def list_purchase_orders(
 async def get_purchase_order(
     order_id: PydanticObjectId,
     service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+    current_user: dict = Depends(require_read()),
 ) -> PurchaseOrderResponse:
     """
     Gets a purchase order by its ID.
@@ -104,6 +107,7 @@ async def get_purchase_order(
 async def create_manual_purchase_order(
     order_data: PurchaseOrderCreate,
     service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+    current_user: dict = Depends(require_create()),
 ) -> PurchaseOrderResponse:
     """
     Manually creates a new purchase order.
@@ -127,6 +131,7 @@ async def create_manual_purchase_order(
 async def mark_purchase_order_as_shipped(
     order_id: PydanticObjectId,
     service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+    current_user: dict = Depends(require_update()),
 ) -> MarkShippedResponse:
     """
     Marks a purchase order as shipped.
@@ -151,6 +156,7 @@ async def cancel_purchase_order(
     order_id: PydanticObjectId,
     cancel_data: CancelOrderRequest,
     service: PurchaseOrderService = Depends(lambda: purchase_order_service),
+    current_user: dict = Depends(require_delete()),
 ) -> CancelOrderResponse:
     """
     Cancels a purchase order.

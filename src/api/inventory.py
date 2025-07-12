@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional
 from beanie import PydanticObjectId
 
-from ..models import (
+from models import (
     InventoryConsultationQuery,
     InventoryConsultationResponse,
 )
-from ..services import inventory_service
-from ..services.inventory_service import InventoryService
+from services import inventory_service
+from services.inventory_service import InventoryService
+from core.dependencies import require_create, require_read, require_list
 
 router = APIRouter()
 
@@ -29,6 +30,7 @@ async def consult_inventory(
     limit: Optional[int] = Query(100, le=1000, description="Maximum number of items to return"),
     offset: Optional[int] = Query(0, description="Number of items to skip"),
     service: InventoryService = Depends(lambda: inventory_service),
+    current_user: dict = Depends(require_list()),
 ) -> InventoryConsultationResponse:
     """
     Consult inventory levels with comprehensive filtering options.
@@ -86,6 +88,7 @@ async def update_minimum_threshold(
     inventory_id: str,
     new_threshold: float = Query(..., ge=0, description="New minimum threshold value"),
     service: InventoryService = Depends(lambda: inventory_service),
+    current_user: dict = Depends(require_create()),
 ) -> dict:
     """
     Update the minimum stock threshold for a specific inventory item.

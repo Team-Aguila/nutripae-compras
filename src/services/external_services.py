@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional
 import aiohttp
 from pydantic import ValidationError
 
-from ..core.config import settings
-from ..models.purchase_calculation import (
+from core.config import settings
+from models.purchase_calculation import (
     Coverage,
     CoverageServiceResponse,
     MenuServiceResponse,

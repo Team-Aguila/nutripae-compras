@@ -8,9 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from fastapi.openapi.utils import get_openapi
 from utils.telemetrics import PrometheusMiddleware, metrics, setting_otlp
-from .core.config import settings
-from .api import api_router
-from .models import (
+from core.config import settings
+from api import api_router
+from models import (
     PurchaseOrder,
     Provider,
     Product,
@@ -136,6 +136,17 @@ if __name__ == "__main__":
     log_dir = "/var/log/containers"
     os.makedirs(log_dir, exist_ok=True)
     
+    # Configurar logging básico para la aplicación
+    import logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] - %(message)s",
+        handlers=[
+            logging.StreamHandler(),  # Para mostrar en consola
+            logging.FileHandler("/var/log/containers/nutripae-auth.log", mode="a")
+        ]
+    )
+    
     # update uvicorn access logger format
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"][
@@ -145,14 +156,18 @@ if __name__ == "__main__":
     # Configurar handler para archivo de logs
     log_config["handlers"]["file"] = {
         "class": "logging.FileHandler",
-        "filename": "/var/log/containers/nutripae-compra.log",
+        "filename": "/var/log/containers/nutripae-auth.log",
         "formatter": "access",
         "mode": "a"
     }
     
-    # Agregar el handler de archivo a los loggers existentes
-    log_config["loggers"]["uvicorn.access"]["handlers"].append("file")
-    log_config["loggers"]["uvicorn"]["handlers"].append("file")
+    # Asegurar que los handlers existan antes de modificar
+    for logger_name in ["uvicorn.access", "uvicorn"]:
+        if logger_name in log_config["loggers"]:
+            if "handlers" not in log_config["loggers"][logger_name]:
+                log_config["loggers"][logger_name]["handlers"] = ["default"]
+            if "file" not in log_config["loggers"][logger_name]["handlers"]:
+                log_config["loggers"][logger_name]["handlers"].append("file")
     
     # Configurar el logger raíz para también escribir al archivo
     if "root" not in log_config["loggers"]:
@@ -160,9 +175,14 @@ if __name__ == "__main__":
             "level": "INFO",
             "handlers": ["default", "file"]
         }
-    elif "handlers" in log_config["loggers"]["root"]:
-        log_config["loggers"]["root"]["handlers"].append("file")
     else:
-        log_config["loggers"]["root"]["handlers"] = ["default", "file"]
+        if "handlers" not in log_config["loggers"]["root"]:
+            log_config["loggers"]["root"]["handlers"] = ["default"]
+        if "file" not in log_config["loggers"]["root"]["handlers"]:
+            log_config["loggers"]["root"]["handlers"].append("file")
+    
+    # Log de inicio
+    logger = logging.getLogger(__name__)
+    logger.info("Iniciando NutriPAE-AUTH con configuración de logging mejorada...")
     
     uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)
