@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Dict, Any
 from beanie import PydanticObjectId
 
-from ..models import (
+from models import (
     IngredientReceipt,
     IngredientReceiptCreate,
     IngredientReceiptResponse,

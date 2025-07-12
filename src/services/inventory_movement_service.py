@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from beanie import PydanticObjectId
 import uuid
 
-from ..models import (
+from models import (
     InventoryMovement,
     MovementType,
     InventoryMovementResponse,

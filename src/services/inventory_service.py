@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 
-from ..models import (
+from models import (
     Inventory,
     InventoryItemResponse,
     InventoryConsultationQuery,

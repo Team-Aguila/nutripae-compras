@@ -3,7 +3,7 @@ from datetime import date
 from typing import List, Dict, Any
 from collections import defaultdict
 
-from ..models.purchase_calculation import (
+from models.purchase_calculation import (
     PurchaseCalculationRequest,
     PurchaseCalculationResponse,
     CalculationPeriod,
@@ -14,8 +14,8 @@ from ..models.purchase_calculation import (
     DailyIngredientNeed,
     IngredientCalculation
 )
-from ..services.external_services import CoverageServiceClient, MenuServiceClient, ExternalServiceError
-from ..services.inventory_service import InventoryService
+from services.external_services import CoverageServiceClient, MenuServiceClient, ExternalServiceError
+from services.inventory_service import InventoryService
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,14 @@
 import logging
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from ..models.purchase_calculation import (
+from models.purchase_calculation import (
     PurchaseCalculationRequest,
     PurchaseCalculationResponse
 )
-from ..services.calculation_service import CalculationService
-from ..services.external_services import ExternalServiceError
+from services.calculation_service import CalculationService
+from services.external_services import ExternalServiceError
+from core.dependencies import require_create, require_read, require_list
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ router = APIRouter()
     description="Calculate required ingredient quantities for a future period based on scheduled menus and beneficiary coverage"
 )
 async def calculate_purchase_needs(
-    request: PurchaseCalculationRequest
+    request: PurchaseCalculationRequest,
+    current_user: dict = Depends(require_create()),
 ) -> PurchaseCalculationResponse:
     """
     Calculate the required quantities of ingredients for a future period.
@@ -85,7 +87,9 @@ async def calculate_purchase_needs(
     summary="Health Check",
     description="Check if the purchase calculation service is healthy"
 )
-async def health_check():
+async def health_check(
+    current_user: dict = Depends(require_read()),
+):
     """Health check endpoint for purchase calculation service"""
     return {
         "status": "healthy",
@@ -99,7 +103,10 @@ async def health_check():
     summary="Get Coverage Information",
     description="Get information about available coverage areas (municipalities or campuses)"
 )
-async def get_coverage_info(coverage_type: str):
+async def get_coverage_info(
+    coverage_type: str,
+    current_user: dict = Depends(require_read()),
+):
     """
     Get information about available coverage areas.
     
