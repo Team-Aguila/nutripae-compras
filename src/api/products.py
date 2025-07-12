@@ -2,15 +2,16 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, List
 from beanie import PydanticObjectId
 
-from ..models import (
+from models import (
     ProductCreate,
     ProductUpdate,
     ProductResponse,
     ProductListResponse,
     ShrinkageFactorUpdate,
 )
-from ..services import product_service
-from ..services.product_service import ProductService
+from services import product_service
+from services.product_service import ProductService
+from core.dependencies import require_create, require_read, require_list, require_delete, require_update
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ router = APIRouter()
 async def create_product(
     product_data: ProductCreate,
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_create()),
 ) -> ProductResponse:
     """
     Create a new product.
@@ -65,6 +67,7 @@ async def create_product(
 async def get_product(
     product_id: PydanticObjectId,
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_read()),
 ) -> ProductResponse:
     """
     Retrieve a single product by its ID.
@@ -99,6 +102,7 @@ async def get_products(
         default=0, ge=0, description="Number of products to skip for pagination"
     ),
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_list()),
 ) -> ProductListResponse:
     """
     Retrieve a list of all non-deleted products.
@@ -154,6 +158,7 @@ async def update_product(
     product_id: PydanticObjectId,
     product_data: ProductUpdate,
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_create()),
 ) -> ProductResponse:
     """
     Update a product by its ID.
@@ -199,6 +204,7 @@ async def update_product(
 async def delete_product(
     product_id: PydanticObjectId,
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_delete()),
 ):
     """
     Soft delete a product by its ID.
@@ -242,6 +248,7 @@ async def update_product_shrinkage_factor(
     product_id: PydanticObjectId,
     shrinkage_data: ShrinkageFactorUpdate,
     service: ProductService = Depends(lambda: product_service),
+    current_user: dict = Depends(require_update()),
 ) -> ProductResponse:
     """
     Update the shrinkage factor for a specific product.

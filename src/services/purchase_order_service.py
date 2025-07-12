@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 import math
 
-from ..models import (
+from models import (
     PurchaseOrder,
     PurchaseOrderCreate,
     PurchaseOrderItem,

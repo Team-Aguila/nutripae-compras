@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, Query, Body
 from typing import List, Optional
 from beanie import PydanticObjectId
 
-from ..models import (
+from models import (
     InventoryMovementResponse, 
     MovementType,
     InventoryConsumptionRequest,
@@ -13,8 +13,9 @@ from ..models import (
     ManualInventoryAdjustmentRequest,
     ManualInventoryAdjustmentResponse,
 )
-from ..services import inventory_movement_service
-from ..services.inventory_movement_service import InventoryMovementService
+from services import inventory_movement_service
+from services.inventory_movement_service import InventoryMovementService
+from core.dependencies import require_create, require_read, require_list
 
 router = APIRouter()
 
@@ -29,6 +30,7 @@ router = APIRouter()
 async def receive_inventory(
     receipt_request: InventoryReceiptRequest = Body(...),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_create()),
 ) -> InventoryReceiptResponse:
     """
     Record inventory reception (User Story 1).
@@ -96,6 +98,7 @@ async def get_inventory_movements_by_product(
     limit: int = Query(default=100, le=1000, description="Maximum number of movements to return"),
     offset: int = Query(default=0, ge=0, description="Number of movements to skip"),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_list()),
 ) -> List[InventoryMovementResponse]:
     """
     Get inventory movements for a specific product.
@@ -135,6 +138,7 @@ async def get_current_stock(
         default=None, description="Filter by lot number"
     ),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_read()),
 ) -> dict:
     """
     Get current stock level for a specific product at an institution.
@@ -175,6 +179,7 @@ async def get_current_stock(
 async def create_manual_adjustment(
     adjustment_request: ManualInventoryAdjustmentRequest = Body(...),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_create()),
 ) -> ManualInventoryAdjustmentResponse:
     """
     Create a manual inventory adjustment for stock corrections.
@@ -238,6 +243,7 @@ async def create_manual_adjustment(
 async def consume_inventory_fifo(
     consumption_request: InventoryConsumptionRequest = Body(...),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_list()),
 ) -> InventoryConsumptionResponse:
     """
     Consume inventory using FIFO (First-In, First-Out) logic.
@@ -293,6 +299,7 @@ async def get_available_stock_summary(
         default=None, description="Filter by storage location"
     ),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_read()),
 ) -> StockSummaryResponse:
     """
     Get comprehensive summary of available stock for a product.
@@ -340,6 +347,7 @@ async def get_consumption_history(
     limit: int = Query(default=100, le=1000, description="Maximum number of records to return"),
     offset: int = Query(default=0, ge=0, description="Number of records to skip"),
     service: InventoryMovementService = Depends(lambda: inventory_movement_service),
+    current_user: dict = Depends(require_list()),
 ) -> List[InventoryMovementResponse]:
     """
     Get history of consumption movements for a product.

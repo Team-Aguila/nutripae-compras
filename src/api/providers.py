@@ -2,14 +2,15 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional, List
 from beanie import PydanticObjectId
 
-from ..models import (
+from models import (
     ProviderCreate,
     ProviderUpdate,
     ProviderResponse,
     ProviderListResponse,
 )
-from ..services import provider_service
-from ..services.provider_service import ProviderService
+from services import provider_service
+from services.provider_service import ProviderService
+from core.dependencies import require_create, require_read, require_list, require_delete, require_update
 
 router = APIRouter()
 
@@ -24,6 +25,7 @@ router = APIRouter()
 async def create_provider(
     provider_data: ProviderCreate,
     service: ProviderService = Depends(lambda: provider_service),
+    current_user: dict = Depends(require_create()),
 ) -> ProviderResponse:
     """
     Create a new provider.
@@ -65,6 +67,7 @@ async def create_provider(
 async def get_provider(
     provider_id: PydanticObjectId,
     service: ProviderService = Depends(lambda: provider_service),
+    current_user: dict = Depends(require_read()),
 ) -> ProviderResponse:
     """
     Retrieve a single provider by its ID.
@@ -99,6 +102,7 @@ async def get_providers(
         default=100, le=1000, description="Maximum number of providers to return"
     ),
     service: ProviderService = Depends(lambda: provider_service),
+    current_user: dict = Depends(require_list()),
 ) -> ProviderListResponse:
     """
     Retrieve a list of all non-deleted providers.
@@ -154,6 +158,7 @@ async def update_provider(
     provider_id: PydanticObjectId,
     provider_data: ProviderUpdate,
     service: ProviderService = Depends(lambda: provider_service),
+    current_user: dict = Depends(require_update()),
 ) -> ProviderResponse:
     """
     Update a provider by its ID.
@@ -201,6 +206,7 @@ async def update_provider(
 async def delete_provider(
     provider_id: PydanticObjectId,
     service: ProviderService = Depends(lambda: provider_service),
+    current_user: dict = Depends(require_delete()),
 ):
     """
     Soft delete a provider by its ID.

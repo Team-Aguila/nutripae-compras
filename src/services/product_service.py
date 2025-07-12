@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from beanie import PydanticObjectId
 
-from ..models import Product
+from models import Product
 
 
 class ProductService:

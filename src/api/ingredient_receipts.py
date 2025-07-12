@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, status, Query
 from typing import List, Optional
 from beanie import PydanticObjectId
 
-from ..models import IngredientReceiptCreate, IngredientReceiptResponse
-from ..services import ingredient_receipt_service, inventory_movement_service
-from ..services.ingredient_receipt_service import IngredientReceiptService
+from models import IngredientReceiptCreate, IngredientReceiptResponse
+from services import ingredient_receipt_service, inventory_movement_service
+from services.ingredient_receipt_service import IngredientReceiptService
+from core.dependencies import require_create, require_read, require_list
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ router = APIRouter()
 async def register_ingredient_receipt(
     receipt_data: IngredientReceiptCreate,
     service: IngredientReceiptService = Depends(lambda: ingredient_receipt_service),
+    current_user: dict = Depends(require_create()),
 ) -> IngredientReceiptResponse:
     """
     Registers the receipt of ingredients with comprehensive inventory management.
@@ -58,6 +60,7 @@ async def register_ingredient_receipt(
 async def get_ingredient_receipt(
     receipt_id: PydanticObjectId,
     service: IngredientReceiptService = Depends(lambda: ingredient_receipt_service),
+    current_user: dict = Depends(require_read()),
 ) -> IngredientReceiptResponse:
     """
     Get an ingredient receipt by ID.
@@ -79,6 +82,7 @@ async def get_ingredient_receipts_by_institution(
     limit: int = Query(default=100, le=1000, description="Maximum number of receipts to return"),
     offset: int = Query(default=0, ge=0, description="Number of receipts to skip"),
     service: IngredientReceiptService = Depends(lambda: ingredient_receipt_service),
+    current_user: dict = Depends(require_list()),
 ) -> List[IngredientReceiptResponse]:
     """
     Get ingredient receipts for a specific institution.

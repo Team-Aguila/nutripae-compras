@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from beanie import PydanticObjectId
 from pymongo.errors import DuplicateKeyError
 
-from ..models import Provider
+from models import Provider
 
 
 class ProviderService:
