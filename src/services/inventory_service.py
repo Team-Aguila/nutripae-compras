@@ -57,13 +57,16 @@ class InventoryService:
             response_item = InventoryService._convert_to_response_model(item)
             response_items.append(response_item)
         
-        # Calculate pagination info
+        # Calculate pagination info - handle Optional[int] safely
+        limit = query_params.limit or 100
+        offset = query_params.offset or 0
+        
         page_info = {
-            'current_page': (query_params.offset // query_params.limit) + 1,
-            'page_size': query_params.limit,
-            'total_pages': (total_count + query_params.limit - 1) // query_params.limit,
-            'has_next': query_params.offset + query_params.limit < total_count,
-            'has_previous': query_params.offset > 0
+            'current_page': (offset // limit) + 1,
+            'page_size': limit,
+            'total_pages': (total_count + limit - 1) // limit,
+            'has_next': offset + limit < total_count,
+            'has_previous': offset > 0
         }
         
         # Calculate summary statistics
@@ -82,7 +85,7 @@ class InventoryService:
         pipeline = []
         
         # Match stage for filtering
-        match_conditions = {"deleted_at": None}
+        match_conditions: Dict[str, Any] = {"deleted_at": None}
         
         if query_params.institution_id:
             match_conditions["institution_id"] = query_params.institution_id
@@ -91,7 +94,8 @@ class InventoryService:
             match_conditions["product_id"] = query_params.product_id
             
         if not query_params.show_expired:
-            match_conditions["expiration_date"] = {"$gte": date.today()}
+            today_str = datetime.now().date().isoformat()
+            match_conditions["expiration_date"] = {"$gte": today_str}
             
         pipeline.append({"$match": match_conditions})
         
@@ -189,7 +193,7 @@ class InventoryService:
     def _convert_to_response_model(item: Dict[str, Any]) -> InventoryItemResponse:
         """Convert aggregation result to response model"""
         return InventoryItemResponse(
-            id=str(item["_id"]),  # Convert ObjectId to string
+            _id=str(item["_id"]),  # Convert ObjectId to string
             product_id=str(item["product_id"]),  # Convert ObjectId to string
             product_name=item["product_name"],
             institution_id=item["institution_id"],
@@ -218,8 +222,8 @@ class InventoryService:
         if not items:
             return {
                 "total_items": 0,
-                "items_below_threshold": 0,
-                "expired_items": 0,
+                "below_threshold_count": 0,
+                "expired_count": 0,
                 "categories": 0,
                 "total_quantity": 0
             }
@@ -232,8 +236,8 @@ class InventoryService:
         
         return {
             "total_items": len(items),
-            "items_below_threshold": items_below_threshold,
-            "expired_items": expired_items,
+            "below_threshold_count": items_below_threshold,
+            "expired_count": expired_items,
             "categories": unique_categories,
             "total_quantity": round(total_quantity, 2)
         }
@@ -244,24 +248,18 @@ class InventoryService:
         new_threshold: float
     ) -> bool:
         """Update minimum threshold for a specific inventory item"""
-        try:
-            inventory_item = await Inventory.get(inventory_id)
-            if not inventory_item:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Inventory item with id {inventory_id} not found"
-                )
-            
-            inventory_item.minimum_threshold = new_threshold
-            inventory_item.updated_at = datetime.utcnow()
-            await inventory_item.save()
-            
-            return True
-        except Exception as e:
+        inventory_item = await Inventory.get(inventory_id)
+        if not inventory_item:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update minimum threshold: {str(e)}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Inventory item not found"
             )
+        
+        inventory_item.minimum_threshold = new_threshold
+        inventory_item.updated_at = datetime.utcnow()
+        await inventory_item.save()
+        
+        return True
 
 
 # Service instance
