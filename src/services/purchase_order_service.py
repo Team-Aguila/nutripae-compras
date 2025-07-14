@@ -241,6 +241,15 @@ class PurchaseOrderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Purchase order must have at least one item.",
             )
+        
+        # Validate that provider exists and is not deleted
+        from .provider_service import ProviderService
+        await ProviderService.get_provider_by_id(order_data.provider_id)
+        
+        # Validate that all products exist and are not deleted
+        from .product_service import ProductService
+        for item in order_data.items:
+            await ProductService.get_product_by_id(item.product_id)
 
         # Calculate subtotal and total
         subtotal = sum(item.quantity * item.price for item in order_data.items)
