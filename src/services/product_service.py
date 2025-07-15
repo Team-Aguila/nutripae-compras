@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from beanie import PydanticObjectId
 
-from models import Product
+from ..models import Product, Provider
 
 
 class ProductService:
@@ -22,8 +22,29 @@ class ProductService:
             Product: Created product
             
         Raises:
-            HTTPException: If validation fails or creation fails
+            HTTPException: If validation fails, provider not found, or creation fails
         """
+<<<<<<< Updated upstream:src/services/product_service.py
+        # Validate that the provider exists and is not deleted
+        provider_id = product_data.get("provider_id")
+        if provider_id:
+            provider = await Provider.get(provider_id)
+            if not provider or provider.deleted_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Provider not found"
+                )
+=======
+        # Validate that provider exists and is not deleted
+        provider_id = product_data.get('provider_id')
+        if provider_id:
+            from .provider_service import ProviderService
+            # Convert string to PydanticObjectId if needed
+            if isinstance(provider_id, str):
+                provider_id = PydanticObjectId(provider_id)
+            await ProviderService.get_provider_by_id(provider_id)
+>>>>>>> Stashed changes:src/pae_compras/services/product_service.py
+        
         # Create the product with current timestamp
         new_product = Product(
             **product_data,

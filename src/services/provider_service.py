@@ -25,6 +25,21 @@ class ProviderService:
         Raises:
             HTTPException: If validation fails, NIT already exists, or creation fails
         """
+        # Explicit NIT uniqueness validation
+        nit = provider_data.get('nit')
+        if nit:
+            existing_provider = await Provider.find_one(
+                {"nit": nit, "deleted_at": None}
+            )
+            if existing_provider:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Provider with NIT '{nit}' already exists"
+                )
+<<<<<<< Updated upstream:src/services/provider_service.py
+        
+=======
+>>>>>>> Stashed changes:src/pae_compras/services/provider_service.py
         # Create the provider with current timestamp
         new_provider = Provider(
             **provider_data,
