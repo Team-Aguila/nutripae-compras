@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from typing import Optional
 from beanie import PydanticObjectId
 
@@ -28,7 +28,7 @@ async def consult_inventory(
     show_expired: Optional[bool] = Query(True, description="Whether to include expired items"),
     show_below_threshold: Optional[bool] = Query(None, description="Filter items below minimum threshold"),
     limit: Optional[int] = Query(100, le=1000, description="Maximum number of items to return"),
-    offset: Optional[int] = Query(0, description="Number of items to skip"),
+    offset: Optional[int] = Query(0, ge=0, description="Number of items to skip"),
     service: InventoryService = Depends(lambda: inventory_service),
     current_user: dict = Depends(require_list()),
 ) -> InventoryConsultationResponse:
@@ -59,8 +59,24 @@ async def consult_inventory(
     - Analyze inventory distribution by category
     """
     # Convert string IDs to PydanticObjectId where needed, keep institution_id as int
-    product_obj_id = PydanticObjectId(product_id) if product_id else None
-    provider_obj_id = PydanticObjectId(provider_id) if provider_id else None
+    product_obj_id = None
+    provider_obj_id = None
+    
+    try:
+        product_obj_id = PydanticObjectId(product_id) if product_id else None
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid product_id format"
+        )
+    
+    try:
+        provider_obj_id = PydanticObjectId(provider_id) if provider_id else None
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid provider_id format"
+        )
     
     # Create query parameters object
     query_params = InventoryConsultationQuery(
@@ -106,7 +122,13 @@ async def update_minimum_threshold(
     Returns:
         Success message with updated threshold information
     """
-    inventory_obj_id = PydanticObjectId(inventory_id)
+    try:
+        inventory_obj_id = PydanticObjectId(inventory_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid inventory_id format"
+        )
     
     success = await service.update_minimum_threshold(inventory_obj_id, new_threshold)
     
