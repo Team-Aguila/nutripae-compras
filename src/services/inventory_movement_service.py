@@ -671,7 +671,7 @@ class InventoryMovementService:
         Returns:
             StockSummaryResponse compatible data
         """
-        from ..models import StockSummaryResponse, BatchDetail
+        from models import StockSummaryResponse, BatchDetail
         
         batches = await InventoryMovementService._get_available_batches_fifo(
             product_id=product_id,
